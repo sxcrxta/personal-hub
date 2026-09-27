@@ -1,9 +1,19 @@
-// 오늘 화면 — 다음 커밋에서 Stitch 디자인을 보고 채운다
+// 오늘 화면(/today) — 앱을 열면 가장 먼저 보는 곳. 시작 안내, 예전 노트, 기한별 할 것을 모아 보여준다
+import DueBoard from '../components/today/DueBoard.tsx'
+import OnboardingCard from '../components/today/OnboardingCard.tsx'
+import ResurfaceNoteCard from '../components/today/ResurfaceNoteCard.tsx'
+import TodayHeader from '../components/today/TodayHeader.tsx'
+import { useDueItems } from '../hooks/useDueItems.ts'
+
 export default function TodayPage() {
+  const { groups, nextExam, toggle } = useDueItems()
+
   return (
-    <section>
-      <h1 className="text-display-hero-mobile md:text-display-hero">오늘</h1>
-      <p className="mt-2 text-body-md text-on-surface-variant">아직 만들지 않은 화면이에요.</p>
-    </section>
+    <div className="flex flex-col gap-6 md:gap-8">
+      <TodayHeader groups={groups} nextExam={nextExam} />
+      <OnboardingCard />
+      <ResurfaceNoteCard />
+      <DueBoard groups={groups} onToggle={toggle} />
+    </div>
   )
 }
