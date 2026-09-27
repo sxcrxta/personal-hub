@@ -1,0 +1,105 @@
+/* 색·글꼴·둥글기·그림자를 정의하는 유일한 곳 — docs/DESIGN.md(Stitch "Serene Academic Workstation")를 옮겨 둔 것 */
+
+@theme {
+  /* Tailwind 기본 색을 모두 지워서, 아래에 적은 색만 쓸 수 있게 한다 */
+  --color-*: initial;
+
+  /* 바탕과 면 */
+  --color-background: #f7f9fb;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+
+  /* 글자와 선 */
+  --color-on-surface: #191c1e;
+  --color-on-surface-variant: #44474c;
+  --color-outline: #75777d;
+  --color-outline-variant: #c5c6cd;
+  --color-line: rgba(226, 232, 240, 0.8);
+
+  /* 강조 */
+  --color-primary: #1d2b3e;
+  --color-primary-container: #334155;
+  --color-on-primary: #ffffff;
+  --color-secondary: #505f76;
+  --color-secondary-container: #d0e1fb;
+  --color-tertiary: #142c3d;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+
+  /* 부품(버튼·입력칸·아이콘) */
+  --color-button: #1e293b;
+  --color-hover: #f1f5f9;
+  --color-hover-soft: #f8fafc;
+  --color-icon: #64748b;
+  --color-field-border: #cbd5e1;
+  --color-placeholder: #94a3b8;
+
+  /* 과목·카테고리 파스텔 (바탕 / 글자·테두리) */
+  --color-math-bg: #eff6ff;
+  --color-math: #3b82f6;
+  --color-science-bg: #f0fdf4;
+  --color-science: #22c55e;
+  --color-korean-bg: #fff1f2;
+  --color-korean: #f43f5e;
+  --color-english-bg: #f5f3ff;
+  --color-english: #8b5cf6;
+  --color-social-bg: #fffbeb;
+  --color-social: #d97706;
+  --color-urgent-bg: #fef2f2;
+  --color-urgent: #dc2626;
+
+  /* 기한 칸 색 (기한 지남 / 오늘 / 3일 이내 / 7일 이내) */
+  --color-due-overdue: #dc2626;
+  --color-due-today: #3b82f6;
+  --color-due-soon: #d97706;
+  --color-due-week: #94a3b8;
+
+  /* 글꼴: Inter, 한글은 Pretendard가 이어 받는다 */
+  --font-sans: "Inter", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+
+  --text-display-hero: 32px;
+  --text-display-hero--line-height: 40px;
+  --text-display-hero--font-weight: 600;
+  --text-display-hero-mobile: 26px;
+  --text-display-hero-mobile--line-height: 34px;
+  --text-display-hero-mobile--font-weight: 600;
+  --text-headline-lg: 24px;
+  --text-headline-lg--line-height: 32px;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-md: 20px;
+  --text-headline-md--line-height: 28px;
+  --text-headline-md--font-weight: 600;
+  --text-headline-sm: 16px;
+  --text-headline-sm--line-height: 24px;
+  --text-headline-sm--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 26px;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 22px;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 18px;
+  --text-label-md: 13px;
+  --text-label-md--line-height: 18px;
+  --text-label-md--font-weight: 500;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 14px;
+  --text-label-sm--font-weight: 600;
+
+  /* 둥글기 (rounded = 입력칸·버튼 8px) */
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* 그림자 */
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.03);
+  --shadow-pop: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+
+  /* 배치 */
+  --breakpoint-md: 768px;
+  --spacing-sidebar: 240px;
+  --container-page: 1440px;
+}
