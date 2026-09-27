@@ -57,3 +57,113 @@
   }
 }
 
+/* 달력(FullCalendar) — 색은 theme.css 값만 쓴다 */
+.fc {
+  --fc-border-color: var(--color-line);
+  --fc-page-bg-color: var(--color-surface-container-lowest);
+  --fc-neutral-bg-color: var(--color-surface-container-low);
+  --fc-today-bg-color: color-mix(in oklab, var(--color-secondary-container) 22%, transparent);
+  --fc-now-indicator-color: var(--color-urgent);
+  --fc-highlight-color: color-mix(in oklab, var(--color-secondary-container) 45%, transparent);
+  --fc-event-bg-color: var(--color-surface-container);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: var(--color-on-surface);
+  --fc-small-font-size: 11px;
+  font-size: 13px;
+}
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: var(--color-on-surface-variant);
+  font-weight: 500;
+  padding: 6px 4px;
+}
+.fc .fc-day-today .fc-col-header-cell-cushion,
+.fc .fc-day-today .fc-daygrid-day-number {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.fc .fc-timegrid-slot-label-cushion {
+  color: var(--color-outline);
+  font-size: 11px;
+}
+.fc .fc-timegrid-slot {
+  height: 2.25rem;
+}
+.fc .fc-scrollgrid {
+  border-left: 0;
+  border-top: 0;
+}
+
+/* 블록 색: 카테고리 파스텔 + 왼쪽 진한 막대 */
+.fc .ev {
+  --ev-bg: var(--color-surface-container-low);
+  --ev-fg: var(--color-primary-container);
+  background: var(--ev-bg);
+  border: 1px solid transparent;
+  border-left: 3px solid var(--ev-fg);
+  border-radius: 6px;
+  box-shadow: none;
+}
+.fc .pal-math { --ev-bg: var(--color-math-bg); --ev-fg: var(--color-math); }
+.fc .pal-science { --ev-bg: var(--color-science-bg); --ev-fg: var(--color-science); }
+.fc .pal-korean { --ev-bg: var(--color-korean-bg); --ev-fg: var(--color-korean); }
+.fc .pal-english { --ev-bg: var(--color-english-bg); --ev-fg: var(--color-english); }
+.fc .pal-social { --ev-bg: var(--color-social-bg); --ev-fg: var(--color-social); }
+/* 할 일·공부 블록은 점선으로 일반 일정과 구별 */
+.fc .ev-todo {
+  --ev-bg: var(--color-surface-container-lowest);
+  border: 1px dashed var(--color-outline);
+  border-left: 3px solid var(--color-outline);
+}
+.fc .ev-study {
+  border: 1px dashed var(--ev-fg);
+  border-left: 3px solid var(--ev-fg);
+}
+.fc .ev-deadline { --ev-bg: var(--color-urgent-bg); --ev-fg: var(--color-urgent); }
+.fc .ev-exam { --ev-bg: var(--color-social-bg); --ev-fg: var(--color-social); }
+.fc .ev-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 4px;
+  overflow: hidden;
+  color: var(--color-on-surface);
+  line-height: 1.3;
+}
+.fc-daygrid-event .ev-inner {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+.fc .ev-label {
+  align-self: flex-start;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ev-fg);
+  background: color-mix(in oklab, var(--ev-fg) 12%, transparent);
+}
+.fc .ev-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fc .ev-time {
+  color: var(--color-on-surface-variant);
+  font-size: 11px;
+}
+
+/* 달력 아래 종류 안내의 색 견본 */
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  border-left: 3px solid;
+}
+.legend-event { background: var(--color-math-bg); border-color: var(--color-math); }
+.legend-todo { background: var(--color-surface-container-lowest); border: 1px dashed var(--color-outline); border-left: 3px solid var(--color-outline); }
+.legend-study { background: var(--color-science-bg); border: 1px dashed var(--color-science); border-left: 3px solid var(--color-science); }
+.legend-deadline { background: var(--color-urgent-bg); border-color: var(--color-urgent); }
+.legend-exam { background: var(--color-social-bg); border-color: var(--color-social); }
