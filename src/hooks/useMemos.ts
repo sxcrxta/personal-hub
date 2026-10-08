@@ -4,7 +4,8 @@ import type { MemoSaveMode, Note } from '../types/data.ts'
 import { now, toUtc } from '../lib/date.ts'
 import { createStore, newId, type Store } from '../lib/storage.ts'
 import { settingsStore } from '../lib/profile.ts'
-import { memosStore, notesStore, workerStore } from '../lib/stores.ts'
+import { memoFromRow, memosStore, notesStore, workerStore } from '../lib/stores.ts'
+import { supabase } from '../lib/supabase.ts'
 import { withUndo } from './undo.ts'
 import { useStore } from './useStore.ts'
 
@@ -31,21 +32,23 @@ export function cleanFolder(folder: string): string {
 }
 
 export const memoActions = {
-  save(content: string, tags: string[], saveMode: MemoSaveMode, targetFolder: string): number {
-    const id = Math.max(0, ...memosStore.get().map((m) => m.id)) + 1
-    memosStore.set((prev) => [
-      ...prev,
-      {
-        id,
+  /** DB에 바로 넣고 DB가 정한 메모 번호를 돌려준다. 실패하면 오류를 던진다(쓰던 글은 화면에 남긴다) */
+  async save(content: string, tags: string[], saveMode: MemoSaveMode, targetFolder: string): Promise<number> {
+    const { data, error } = await supabase
+      .from('memos')
+      .insert({
         content,
         tags,
-        saveMode,
+        save_mode: saveMode,
         status: saveMode === '원문' ? '대기중' : '정제대기',
-        targetFolder: cleanFolder(targetFolder) || settingsStore.get().vaultFolder,
-        createdAt: toUtc(now()),
-      },
-    ])
-    return id
+        target_folder: cleanFolder(targetFolder) || settingsStore.get().vaultFolder,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    const memo = memoFromRow(data)
+    memosStore.applyRemote((prev) => [...prev, memo])
+    return memo.id
   },
   /** 실패한 메모를 다시 대기 줄에 올린다 */
   retry(id: number) {

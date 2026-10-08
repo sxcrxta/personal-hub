@@ -26,15 +26,20 @@ export default function MemoComposer({ workerOnline }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const target = folder ?? settings.vaultFolder
 
-  function save(mode: MemoSaveMode) {
+  async function save(mode: MemoSaveMode) {
     if (savingRef.current || !draft.content.trim()) return
     if (mode === '정제' && !workerOnline) return
     savingRef.current = true
     setSaving(true)
-    const id = memoActions.save(draft.content.trim(), draft.tags, mode, target)
-    setDraft({ content: '', tags: [] })
-    setPreview(false)
-    showToast(mode === '원문' ? `메모 ${id}번을 저장했어요. 맥북에서 가져가면 노트가 돼요` : `메모 ${id}번을 AI 정제 대기에 올렸어요`)
+    try {
+      const id = await memoActions.save(draft.content.trim(), draft.tags, mode, target)
+      setDraft({ content: '', tags: [] })
+      setPreview(false)
+      showToast(mode === '원문' ? `메모 ${id}번을 저장했어요. 맥북에서 가져가면 노트가 돼요` : `메모 ${id}번을 AI 정제 대기에 올렸어요`)
+    } catch {
+      // 쓰던 글은 지우지 않고 남겨 둔다 (architecture.md 위험 3)
+      showToast('저장하지 못했어요. 쓰던 글은 남아 있으니 인터넷 연결을 확인하고 다시 눌러 주세요.')
+    }
     // 저장이 끝난 뒤 잠깐 동안은 다시 누르지 못하게
     setTimeout(() => {
       savingRef.current = false
