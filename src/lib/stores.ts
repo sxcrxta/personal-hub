@@ -1,4 +1,5 @@
 // 앱의 모든 데이터 저장소 목록 — 저장소마다 어떤 Supabase 표에 어떻게 나뉘어 들어가는지 한곳에서 정한다
+// 적힌 순서가 DB에 보내는 순서다. 다른 표를 가리키는 저장소는 가리켜지는 저장소보다 아래에 둔다
 // 화면 타입(camelCase, 선택 값은 undefined)과 표의 열(snake_case, 비어 있으면 null)을 여기서만 바꿔 준다
 import type { Assignment, CalendarEvent, Exam, Habit, Memo, Note, Todo, TodoList, VaultNote } from '../types/data.ts'
 import { createStore } from './storage.ts'
@@ -13,48 +14,19 @@ const INBOX: TodoList = { id: 'inbox', name: '할 일', emoji: '📥' }
 
 const DEFAULT_CATEGORIES = ['국어', '수학', '영어', '과학', '동아리', '일상']
 
-// ───────── 일정 ─────────
+// ───────── 할 일 ─────────
 
-export const eventsStore = createSyncedStore<CalendarEvent[]>('events', {
-  empty: () => [],
+export const todoListsStore = createSyncedStore<TodoList[]>('todo-lists', {
+  empty: () => [INBOX],
   async load() {
-    // 공부 항목과 연결된 일정은 그 항목의 과목·시험 id까지 같이 읽어 studyRef를 만든다
-    const rows = await selectAll('events', '*, study_items(subject_id, exam_subjects(exam_id))')
-    return rows.map((r) => {
-      const item = r.study_items as { subject_id: string; exam_subjects: { exam_id: string } } | null
-      return {
-        id: r.id as string,
-        title: r.title as string,
-        start: r.start_at as string,
-        end: r.end_at as string,
-        location: u(r.location as string | null),
-        category: u(r.category as string | null),
-        memo: u(r.memo as string | null),
-        todoId: u(r.todo_id as string | null),
-        studyRef:
-          item && r.study_item_id
-            ? { examId: item.exam_subjects.exam_id, subjectId: item.subject_id, itemId: r.study_item_id as string }
-            : undefined,
-      }
-    })
+    const rows = await selectAll('todo_lists')
+    return [INBOX, ...rows.map((r) => ({ id: r.id as string, name: r.name as string, emoji: r.emoji as string }))]
   },
-  tables: [{ name: 'events' }],
-  toRows: (events) => ({
-    events: events.map((e) => ({
-      id: e.id,
-      title: e.title,
-      start_at: e.start,
-      end_at: e.end,
-      location: n(e.location),
-      category: n(e.category),
-      memo: n(e.memo),
-      todo_id: n(e.todoId),
-      study_item_id: n(e.studyRef?.itemId),
-    })),
+  tables: [{ name: 'todo_lists' }],
+  toRows: (lists) => ({
+    todo_lists: lists.filter((l) => l.id !== INBOX.id).map((l) => ({ id: l.id, name: l.name, emoji: l.emoji })),
   }),
 })
-
-// ───────── 할 일 ─────────
 
 export const todosStore = createSyncedStore<Todo[]>('todos', {
   empty: () => [],
@@ -91,18 +63,6 @@ export const todosStore = createSyncedStore<Todo[]>('todos', {
       ...(t.createdAt ? { created_at: t.createdAt } : {}),
       done_at: n(t.doneAt),
     })),
-  }),
-})
-
-export const todoListsStore = createSyncedStore<TodoList[]>('todo-lists', {
-  empty: () => [INBOX],
-  async load() {
-    const rows = await selectAll('todo_lists')
-    return [INBOX, ...rows.map((r) => ({ id: r.id as string, name: r.name as string, emoji: r.emoji as string }))]
-  },
-  tables: [{ name: 'todo_lists' }],
-  toRows: (lists) => ({
-    todo_lists: lists.filter((l) => l.id !== INBOX.id).map((l) => ({ id: l.id, name: l.name, emoji: l.emoji })),
   }),
 })
 
@@ -221,6 +181,48 @@ export const assignmentsStore = createSyncedStore<Assignment[]>('assignments', {
     assignment_steps: assignments.flatMap((a) =>
       a.steps.map((s, position) => ({ id: s.id, assignment_id: a.id, title: s.title, done: s.done, position })),
     ),
+  }),
+})
+
+// ───────── 일정 ─────────
+// 할 일·공부 항목을 가리키므로 그 저장소들보다 아래에 만든다 (sync.ts는 만든 순서대로 DB에 보낸다)
+
+export const eventsStore = createSyncedStore<CalendarEvent[]>('events', {
+  empty: () => [],
+  async load() {
+    // 공부 항목과 연결된 일정은 그 항목의 과목·시험 id까지 같이 읽어 studyRef를 만든다
+    const rows = await selectAll('events', '*, study_items(subject_id, exam_subjects(exam_id))')
+    return rows.map((r) => {
+      const item = r.study_items as { subject_id: string; exam_subjects: { exam_id: string } } | null
+      return {
+        id: r.id as string,
+        title: r.title as string,
+        start: r.start_at as string,
+        end: r.end_at as string,
+        location: u(r.location as string | null),
+        category: u(r.category as string | null),
+        memo: u(r.memo as string | null),
+        todoId: u(r.todo_id as string | null),
+        studyRef:
+          item && r.study_item_id
+            ? { examId: item.exam_subjects.exam_id, subjectId: item.subject_id, itemId: r.study_item_id as string }
+            : undefined,
+      }
+    })
+  },
+  tables: [{ name: 'events' }],
+  toRows: (events) => ({
+    events: events.map((e) => ({
+      id: e.id,
+      title: e.title,
+      start_at: e.start,
+      end_at: e.end,
+      location: n(e.location),
+      category: n(e.category),
+      memo: n(e.memo),
+      todo_id: n(e.todoId),
+      study_item_id: n(e.studyRef?.itemId),
+    })),
   }),
 })
 

@@ -3,7 +3,9 @@
 //
 // 흐름: set → 화면에 바로 반영 → 잠시 뒤 한꺼번에 DB에 적기
 // - 글자를 칠 때마다 요청하지 않도록 WRITE_DELAY_MS만큼 모아서 보낸다
-// - 저장소 여러 개가 바뀌면 바뀐 순서대로 하나씩 보낸다 (할 일을 만든 뒤에 그 할 일과 연결된 일정을 적어야 하므로)
+// - 저장소 여러 개가 바뀌면 만든 순서(stores.ts에 적힌 순서)대로 하나씩 보낸다
+//   일정이 가리키는 할 일·공부 항목이 DB에 먼저 있어야 하므로, 가리켜지는 저장소를 위에 만든다
+//   (처음엔 바뀐 순서대로 보냈는데, 일정을 고친 직후 그 일정으로 할 일을 만들면 일정이 먼저 가서 거부됐다)
 // - 실패하면 알림을 띄우고 DB 값을 다시 불러와 화면을 DB와 맞춘다
 import { authStore } from './auth.ts'
 import { createMemoryStore, type Store } from './storage.ts'
@@ -45,8 +47,8 @@ type Entry = {
   flush: () => Promise<void>
 }
 
-const entries: Entry[] = []
-const dirty: Entry[] = [] // 바뀐 순서대로
+const entries: Entry[] = [] // 만든 순서 = DB에 보내는 순서
+const dirty = new Set<Entry>()
 let writeTimer: ReturnType<typeof setTimeout> | undefined
 let writing: Promise<void> = Promise.resolve()
 
@@ -94,8 +96,10 @@ function scheduleWrite() {
   clearTimeout(writeTimer)
   writeTimer = setTimeout(() => {
     writing = writing.then(async () => {
-      while (dirty.length) {
-        const entry = dirty.shift()!
+      while (dirty.size) {
+        // 남은 것 중 가장 먼저 만든 저장소부터
+        const entry = entries.find((e) => dirty.has(e))!
+        dirty.delete(entry)
         await entry.flush()
       }
     })
@@ -145,7 +149,7 @@ export function createSyncedStore<T>(name: string, config: SyncConfig<T>): Synce
     set(next) {
       memory.set(next)
       if (!config.tables) return
-      if (!dirty.includes(entry)) dirty.push(entry)
+      dirty.add(entry)
       scheduleWrite()
     },
     applyRemote(next) {
@@ -180,7 +184,7 @@ export function startSync() {
     const userId = authStore.get().session?.user.id ?? null
     if (userId === loadedFor) return
     clearTimeout(writeTimer)
-    dirty.length = 0
+    dirty.clear()
     entries.forEach((e) => e.reset())
     if (userId) {
       void loadAll(userId)
