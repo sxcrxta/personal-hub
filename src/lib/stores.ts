@@ -1,5 +1,5 @@
 // 앱의 모든 데이터 저장소 목록 — 키 이름과 처음 값을 한곳에서 정한다
-import type { Assignment, CalendarEvent, Exam, Habit, Memo, Note, Settings, Todo, TodoList, VaultNote } from '../types/data.ts'
+import type { Assignment, CalendarEvent, Exam, Habit, Memo, Note, Todo, TodoList, VaultNote } from '../types/data.ts'
 import {
   sampleAssignments,
   sampleEvents,
@@ -26,10 +26,6 @@ export const examsStore = createStore<Exam[]>('exams', sampleExams)
 export const assignmentsStore = createStore<Assignment[]>('assignments', sampleAssignments)
 export const memosStore = createStore<Memo[]>('memos', sampleMemos)
 export const notesStore = createStore<Note[]>('notes', sampleNotes)
-export const settingsStore = createStore<Settings>('settings', () => ({
-  vaultFolder: '0. Slip-box',
-  fileNameFormat: 'yyyy-MM-dd 메모 {번호}',
-}))
 
 /** 맥북 워커가 마지막으로 신호를 보낸 시각 (7회차에 워커가 적는다. 지금은 늘 비어 있다) */
 export const workerStore = createStore<{ lastSeenAt: string | null }>('worker', () => ({ lastSeenAt: null }))
