@@ -1,0 +1,9 @@
+{
+  "id": "personal-hub",
+  "name": "Personal Hub",
+  "version": "0.4.0",
+  "minAppVersion": "1.5.0",
+  "description": "Personal Hub 웹에서 쓴 메모를 가져와 볼트에 원문 그대로 노트로 만든다.",
+  "author": "반민지",
+  "isDesktopOnly": true
+}
