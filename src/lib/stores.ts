@@ -1,8 +1,7 @@
 // 앱의 모든 데이터 저장소 목록 — 저장소마다 어떤 Supabase 표에 어떻게 나뉘어 들어가는지 한곳에서 정한다
 // 적힌 순서가 DB에 보내는 순서다. 다른 표를 가리키는 저장소는 가리켜지는 저장소보다 아래에 둔다
 // 화면 타입(camelCase, 선택 값은 undefined)과 표의 열(snake_case, 비어 있으면 null)을 여기서만 바꿔 준다
-import type { Assignment, CalendarEvent, Exam, Habit, Memo, Note, Todo, TodoList, VaultNote } from '../types/data.ts'
-import { createStore } from './storage.ts'
+import type { Assignment, CalendarEvent, Exam, Habit, Memo, Note, Todo, TodoList, VaultNote, WorkerDevice } from '../types/data.ts'
 import { supabase } from './supabase.ts'
 import { createSyncedStore, hhmm, n, selectAll, startSync, u, type Row } from './sync.ts'
 
@@ -311,10 +310,25 @@ export const todayNoteStore = createSyncedStore<{ date: string; noteId: string }
   toRows: (pick) => ({ daily_notes: pick ? [{ note_date: pick.date, vault_note_id: pick.noteId }] : [] }),
 })
 
-// ───────── 브라우저에만 두는 것 ─────────
+// ───────── 워커 ─────────
 
-/** 맥북 워커가 마지막으로 신호를 보낸 시각 (7회차에 worker_devices 표로 옮긴다. 지금은 늘 비어 있다) */
-export const workerStore = createStore<{ lastSeenAt: string | null }>('worker', () => ({ lastSeenAt: null }))
+const workerFromRow = (r: Row): WorkerDevice => ({
+  id: r.id as string,
+  name: r.name as string,
+  lastSeenAt: r.last_seen_at as string,
+})
+
+/** 맥북 워커 기기 목록. 워커만 적고 웹은 읽기만 한다 */
+export const workersStore = createSyncedStore<WorkerDevice[]>('workers', {
+  empty: () => [],
+  load: async () => (await selectAll('worker_devices', 'id, name, last_seen_at')).map(workerFromRow),
+})
+
+/** 워커 신호는 1분마다 바뀌어서, 화면이 열려 있는 동안 DB에서 다시 읽어 온다 */
+export async function refreshWorkers() {
+  const rows = await selectAll('worker_devices', 'id, name, last_seen_at')
+  workersStore.applyRemote(() => rows.map(workerFromRow))
+}
 
 // 저장소를 다 만든 뒤에 로그인 상태를 따라 불러오기 시작한다
 startSync()

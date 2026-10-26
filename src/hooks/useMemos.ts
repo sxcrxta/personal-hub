@@ -1,29 +1,43 @@
 // Obsidian 메모와 단순 메모장 읽고 쓰기 — 메모는 '대기 중'으로 쌓아 두면 맥북 프로그램이 가져간다
 import { useEffect, useState } from 'react'
-import type { MemoSaveMode, Note } from '../types/data.ts'
+import type { MemoSaveMode, Note, WorkerDevice } from '../types/data.ts'
 import { now, toUtc } from '../lib/date.ts'
 import { createStore, newId, type Store } from '../lib/storage.ts'
 import { settingsStore } from '../lib/profile.ts'
-import { memoFromRow, memosStore, notesStore, workerStore } from '../lib/stores.ts'
+import { memoFromRow, memosStore, notesStore, refreshWorkers, workersStore } from '../lib/stores.ts'
 import { supabase } from '../lib/supabase.ts'
 import { withUndo } from './undo.ts'
 import { useStore } from './useStore.ts'
 
-/** 워커 신호가 이 시간 안에 왔으면 켜져 있다고 본다 */
+/** 워커 신호가 이 시간 안에 왔으면 켜져 있다고 본다 (워커는 1분마다 보낸다) */
 const WORKER_ALIVE_MS = 2 * 60 * 1000
 
 /** 저장 전에 쓰던 글 — 저장에 실패하거나 창을 닫아도 남아 있게 */
 export const memoDraftStore = createStore<{ content: string; tags: string[] }>('memo-draft', () => ({ content: '', tags: [] }))
 
-/** 워커가 켜져 있는지. 30초마다 다시 확인한다 */
-export function useWorkerOnline(): boolean {
-  const [worker] = useStore(workerStore)
+export function isWorkerAlive(device: WorkerDevice, at: number): boolean {
+  return at - new Date(device.lastSeenAt).getTime() < WORKER_ALIVE_MS
+}
+
+/** 워커 기기 목록과 확인한 시각. 30초마다 DB에서 신호를 다시 읽는다 */
+export function useWorkers(): { devices: WorkerDevice[]; checkedAt: number } {
+  const [devices] = useStore(workersStore)
   const [checkedAt, setCheckedAt] = useState(() => Date.now())
   useEffect(() => {
-    const timer = setInterval(() => setCheckedAt(Date.now()), 30_000)
+    const timer = setInterval(() => {
+      // 한 번 못 읽어도(인터넷 끊김 등) 지난 값으로 계속 판단한다
+      refreshWorkers().catch(() => {})
+      setCheckedAt(Date.now())
+    }, 30_000)
     return () => clearInterval(timer)
   }, [])
-  return !!worker.lastSeenAt && checkedAt - new Date(worker.lastSeenAt).getTime() < WORKER_ALIVE_MS
+  return { devices, checkedAt }
+}
+
+/** 워커가 하나라도 켜져 있는지 — 꺼져 있으면 AI 정제 버튼을 잠근다 */
+export function useWorkerOnline(): boolean {
+  const { devices, checkedAt } = useWorkers()
+  return devices.some((d) => isWorkerAlive(d, checkedAt))
 }
 
 /** 볼트 폴더 이름 정리: 앞뒤 공백과 맨 앞 '/' 제거 (architecture.md 결정 A) */

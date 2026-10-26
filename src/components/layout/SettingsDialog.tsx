@@ -1,8 +1,9 @@
-// 설정 창 — 사이드바(폰은 상단바)의 설정 버튼으로 연다. 계정, 볼트 폴더와 파일 이름 형식 (알림·워커·테마는 7·8회차)
+// 설정 창 — 사이드바(폰은 상단바)의 설정 버튼으로 연다. 계정, 볼트 폴더와 파일 이름 형식, 맥북 프로그램 기기 목록 (알림·테마는 7·8회차)
 import { LogOut } from 'lucide-react'
 import { useStore } from '../../hooks/useStore.ts'
-import { cleanFolder } from '../../hooks/useMemos.ts'
+import { cleanFolder, isWorkerAlive, useWorkers } from '../../hooks/useMemos.ts'
 import { authStore } from '../../lib/auth.ts'
+import { daysFromToday, formatMonthDay, formatTime, fromUtc } from '../../lib/date.ts'
 import { settingsStore } from '../../lib/profile.ts'
 import { supabase } from '../../lib/supabase.ts'
 import Button from '../common/Button.tsx'
@@ -14,9 +15,15 @@ type Props = {
   onClose: () => void
 }
 
+function lastSeenText(iso: string): string {
+  const dt = fromUtc(iso)
+  return daysFromToday(dt) === 0 ? `오늘 ${formatTime(dt)}` : `${formatMonthDay(dt)} ${formatTime(dt)}`
+}
+
 export default function SettingsDialog({ open, onClose }: Props) {
   const [settings, setSettings] = useStore(settingsStore)
   const [{ session }] = useStore(authStore)
+  const { devices, checkedAt } = useWorkers()
 
   async function logout() {
     onClose()
@@ -58,8 +65,33 @@ export default function SettingsDialog({ open, onClose }: Props) {
           </Field>
           <p className="text-body-sm text-on-surface-variant">{'{번호}'} 자리에 메모 번호가 들어가서 같은 노트가 두 번 생기지 않아요.</p>
         </section>
+        <section className="space-y-3">
+          <h3 className="text-headline-sm">맥북 프로그램</h3>
+          {devices.length ? (
+            <ul className="divide-y rounded border">
+              {devices.map((d) => {
+                const alive = isWorkerAlive(d, checkedAt)
+                return (
+                  <li key={d.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className={`size-2 shrink-0 rounded-full ${alive ? 'bg-science' : 'bg-outline'}`} />
+                      <span className="truncate text-body-md">{d.name}</span>
+                    </span>
+                    <span className={`shrink-0 text-body-sm ${alive ? 'text-science' : 'text-on-surface-variant'}`}>
+                      {alive ? '켜짐' : `꺼짐 · 마지막 신호 ${lastSeenText(d.lastSeenAt)}`}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : (
+            <p className="text-body-sm text-on-surface-variant">
+              아직 등록된 기기가 없어요. 맥북에서 워커를 로그인하면 여기에 생겨요.
+            </p>
+          )}
+        </section>
         <section className="rounded border bg-surface-container-low p-4 text-body-sm text-on-surface-variant">
-          알림 켜기, 맥북 프로그램 연결 상태, 테마 고르기는 곧 여기에 생겨요.
+          알림 켜기, 테마 고르기는 곧 여기에 생겨요.
         </section>
       </div>
     </Dialog>

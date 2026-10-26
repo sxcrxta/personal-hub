@@ -114,6 +114,13 @@ export type Memo = {
   createdAt: string // UTC ISO
 }
 
+/** 맥북 워커 기기 — 워커가 1분마다 마지막 신호 시각을 적는다 */
+export type WorkerDevice = {
+  id: string
+  name: string
+  lastSeenAt: string // UTC ISO
+}
+
 /** 단순 메모장 (Obsidian으로 보내지 않는다) */
 export type Note = {
   id: string
