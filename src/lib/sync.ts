@@ -92,6 +92,11 @@ async function writeDiff(specs: TableSpec[], before: Record<string, Row[]>, afte
   }
 }
 
+/** 아직 DB에 보내지 않은 변경이 있는지. 있을 때 DB 값으로 덮으면 방금 고친 것이 사라진다 */
+export function hasPendingWrites(): boolean {
+  return dirty.size > 0
+}
+
 function scheduleWrite() {
   clearTimeout(writeTimer)
   writeTimer = setTimeout(() => {

@@ -3,7 +3,7 @@
 // 화면 타입(camelCase, 선택 값은 undefined)과 표의 열(snake_case, 비어 있으면 null)을 여기서만 바꿔 준다
 import type { Assignment, CalendarEvent, Exam, Habit, Memo, Note, Todo, TodoList, VaultNote, WorkerDevice } from '../types/data.ts'
 import { supabase } from './supabase.ts'
-import { createSyncedStore, hhmm, n, selectAll, startSync, u, type Row } from './sync.ts'
+import { createSyncedStore, hasPendingWrites, hhmm, n, selectAll, startSync, u, type Row } from './sync.ts'
 
 export { onboardingStore, todoPrefsStore, type TodoSort } from './profile.ts'
 export { dataStatusStore } from './sync.ts'
@@ -328,6 +328,13 @@ export const workersStore = createSyncedStore<WorkerDevice[]>('workers', {
 export async function refreshWorkers() {
   const rows = await selectAll('worker_devices', 'id, name, last_seen_at')
   workersStore.applyRemote(() => rows.map(workerFromRow))
+}
+
+/** 메모 상태와 파일 경로는 플러그인이 DB에 적는다. 화면이 열려 있는 동안 다시 읽어 와야 바뀐 것이 보인다 */
+export async function refreshMemos() {
+  const rows = await selectAll('memos')
+  if (hasPendingWrites()) return // 방금 누른 '다시 시도'나 지우기를 덮지 않는다. 다음 확인 때 맞춰진다
+  memosStore.applyRemote(() => rows.map(memoFromRow))
 }
 
 // 저장소를 다 만든 뒤에 로그인 상태를 따라 불러오기 시작한다

@@ -4,13 +4,14 @@ import type { MemoSaveMode, Note, WorkerDevice } from '../types/data.ts'
 import { now, toUtc } from '../lib/date.ts'
 import { createStore, newId, type Store } from '../lib/storage.ts'
 import { settingsStore } from '../lib/profile.ts'
-import { memoFromRow, memosStore, notesStore, refreshWorkers, workersStore } from '../lib/stores.ts'
+import { memoFromRow, memosStore, notesStore, refreshMemos, refreshWorkers, workersStore } from '../lib/stores.ts'
 import { supabase } from '../lib/supabase.ts'
 import { withUndo } from './undo.ts'
 import { useStore } from './useStore.ts'
 
 /** 플러그인 신호가 이 시간 안에 왔으면 켜져 있다고 본다 (플러그인은 1분마다 보낸다) */
 const WORKER_ALIVE_MS = 2 * 60 * 1000
+const MEMO_REFRESH_MS = 15_000
 
 /** 저장 전에 쓰던 글 — 저장에 실패하거나 창을 닫아도 남아 있게 */
 export const memoDraftStore = createStore<{ content: string; tags: string[] }>('memo-draft', () => ({ content: '', tags: [] }))
@@ -38,6 +39,27 @@ export function useWorkers(): { devices: WorkerDevice[]; checkedAt: number } {
 export function useWorkerOnline(): boolean {
   const { devices, checkedAt } = useWorkers()
   return devices.some((d) => isWorkerAlive(d, checkedAt))
+}
+
+/** 메모 화면을 열 때, 탭으로 돌아올 때, 처리를 기다리는 메모가 있는 동안 15초마다 상태를 다시 읽는다 */
+export function useMemoRefresh() {
+  useEffect(() => {
+    // 한 번 못 읽어도(인터넷 끊김 등) 지난 값을 그대로 보여 주고 다음에 다시 읽는다
+    const refresh = () => void refreshMemos().catch(() => {})
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    refresh()
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = setInterval(() => {
+      const waiting = memosStore.get().some((m) => m.status !== '완료' && m.status !== '실패')
+      if (waiting && document.visibilityState === 'visible') refresh()
+    }, MEMO_REFRESH_MS)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
 }
 
 /** 볼트 폴더 이름 정리: 앞뒤 공백과 맨 앞 '/' 제거 (architecture.md 결정 A) */

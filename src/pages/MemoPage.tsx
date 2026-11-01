@@ -5,7 +5,7 @@ import MemoComposer from '../components/memo/MemoComposer.tsx'
 import NotepadTab from '../components/memo/NotepadTab.tsx'
 import RecentMemos from '../components/memo/RecentMemos.tsx'
 import WorkerStatusCard from '../components/memo/WorkerStatusCard.tsx'
-import { useWorkerOnline } from '../hooks/useMemos.ts'
+import { useMemoRefresh, useWorkerOnline } from '../hooks/useMemos.ts'
 import { useStore } from '../hooks/useStore.ts'
 import { memosStore } from '../lib/stores.ts'
 
@@ -14,6 +14,7 @@ export default function MemoPage() {
   const tab = params.get('tab') === 'notepad' ? 'notepad' : 'obsidian'
   const [memos] = useStore(memosStore)
   const workerOnline = useWorkerOnline()
+  useMemoRefresh()
 
   const tabs = [
     { id: 'obsidian', label: 'Obsidian 메모', sub: '볼트로 보내기' },
