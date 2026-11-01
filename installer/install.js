@@ -26,15 +26,6 @@ function writeJson(path, value) {
   if (!saved) throw new Error(`${path} 파일을 저장하지 못했어요.`)
 }
 
-/** Obsidian이 기억하는 볼트 중 지금도 폴더가 있는 것만 고른다 */
-function findVaults() {
-  const file = `${$.NSHomeDirectory().js}/Library/Application Support/obsidian/obsidian.json`
-  const vaults = readJson(file, { vaults: {} }).vaults ?? {}
-  return Object.values(vaults)
-    .map((vault) => vault.path)
-    .filter((path) => exists(`${path}/.obsidian`))
-}
-
 /** manifest의 버전. 파일이 없거나 깨졌으면 비교하지 않고 덮어쓰도록 빈 값을 돌려준다 */
 function versionIn(folder) {
   try {
@@ -74,23 +65,28 @@ function install(vaultPath, pluginDir) {
   if (!enabled.includes(PLUGIN_ID)) writeJson(listFile, [...enabled, PLUGIN_ID])
 }
 
+/** Finder 창에서 볼트 폴더를 고른다. 볼트가 아니면 다시 고르게 하고, 취소하면 null */
+function chooseVault(say) {
+  for (;;) {
+    let folder
+    try {
+      folder = system.chooseFolder({ withPrompt: 'Personal Hub를 설치할 Obsidian 볼트 폴더를 골라 주세요.' })
+    } catch {
+      return null // 취소를 누르면 오류로 온다
+    }
+    const vaultPath = folder.toString().replace(/\/$/, '')
+    if (exists(`${vaultPath}/.obsidian`)) return vaultPath
+    say('이 폴더는 Obsidian 볼트가 아니에요. Obsidian에서 한 번 연 볼트 폴더를 골라 주세요.')
+  }
+}
+
 function runWithDialogs() {
   const say = (message) => system.displayDialog(message, { withTitle: APP_NAME, buttons: ['확인'], defaultButton: '확인' })
-  const vaults = findVaults()
-  if (!vaults.length) {
-    say('Obsidian 볼트를 찾지 못했어요. Obsidian에서 볼트를 만든 뒤 다시 실행해 주세요.')
-    return
-  }
-  const picked = system.chooseFromList(vaults, {
-    withTitle: APP_NAME,
-    withPrompt: 'Personal Hub를 설치할 볼트를 골라 주세요.',
-    okButtonName: '설치',
-    cancelButtonName: '취소',
-  })
-  if (!picked) return
+  const vaultPath = chooseVault(say)
+  if (!vaultPath) return
 
   try {
-    install(picked[0], `${$.NSBundle.mainBundle.resourcePath.js}/plugin`)
+    install(vaultPath, `${$.NSBundle.mainBundle.resourcePath.js}/plugin`)
   } catch (e) {
     say(`설치하지 못했어요: ${e.message}`)
     return
