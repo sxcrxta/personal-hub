@@ -2,21 +2,13 @@
 // 단계별 설명은 docs/architecture.md 2-1절(4~6단계)과 7절 결정 B에 있다
 import { TFile, type App } from 'obsidian'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { claimMemo, pendingFilter, type ClaimableMemo } from './claim'
 import { noteBody, noteFileName, notePath } from './noteFile'
 
-/** 처리 중인 채 이 시간이 지나면 버려진 작업으로 보고 다시 집어 간다 (결정 B) */
-const STALE_MS = 10 * 60 * 1000
-/** 다시 집어 가는 횟수 한도. 넘으면 실패로 두고 더 시도하지 않는다 */
-const MAX_RETRY = 3
-
-type MemoRow = {
-  id: number
+type MemoRow = ClaimableMemo & {
   content: string
   tags: string[]
   target_folder: string
-  status: '대기중' | '처리중'
-  claimed_at: string | null
-  retry_count: number
   created_at: string
 }
 
@@ -37,43 +29,21 @@ export async function fetchPendingMemos(app: App, supabase: SupabaseClient, devi
   if (profileError) throw profileError
 
   // 원문 저장이면서 '대기중'이거나, '처리중'인데 10분 넘게 멈춰 있는 내 메모를 오래된 순서로
-  const staleBefore = new Date(Date.now() - STALE_MS).toISOString()
   const { data: memos, error } = await supabase
     .from('memos')
     .select('id, content, tags, target_folder, status, claimed_at, retry_count, created_at')
     .eq('save_mode', '원문')
-    .or(`status.eq.대기중,and(status.eq.처리중,claimed_at.lt."${staleBefore}")`)
+    .or(pendingFilter('대기중'))
     .order('created_at')
   if (error) throw error
 
   for (const memo of memos as MemoRow[]) {
-    const stale = memo.status === '처리중'
-
-    if (stale && memo.retry_count >= MAX_RETRY) {
-      await supabase
-        .from('memos')
-        .update({ status: '실패', error_message: `처리 중에 멈춘 일이 ${MAX_RETRY}번 넘게 생겨서 더 시도하지 않았어요.` })
-        .eq('id', memo.id)
-        .eq('status', '처리중')
+    const claim = await claimMemo(supabase, memo, deviceName)
+    if (claim === '포기') {
       result.failed.push(`메모 ${memo.id}: 재시도 한도 초과`)
       continue
     }
-
-    // 잠그기 — 읽었을 때와 상태가 그대로일 때만 바뀐다. 그 사이 다른 기기가 가져갔으면 0줄이 바뀌고 건너뛴다
-    let claim = supabase
-      .from('memos')
-      .update({
-        status: '처리중',
-        claimed_at: new Date().toISOString(),
-        claimed_by: deviceName,
-        retry_count: stale ? memo.retry_count + 1 : memo.retry_count,
-      })
-      .eq('id', memo.id)
-      .eq('status', memo.status)
-    if (stale && memo.claimed_at) claim = claim.eq('claimed_at', memo.claimed_at)
-    const { data: claimed, error: claimError } = await claim.select('id')
-    if (claimError) throw claimError
-    if (!claimed?.length) {
+    if (claim === '건너뜀') {
       result.skipped++
       continue
     }
@@ -108,7 +78,7 @@ export async function fetchPendingMemos(app: App, supabase: SupabaseClient, devi
 }
 
 /** 없는 폴더는 한 단계씩 만든다 (결정 A: 폴더 이름은 사람이 입력한 것이라 실제로 없을 수 있다) */
-async function ensureFolder(app: App, folder: string) {
+export async function ensureFolder(app: App, folder: string) {
   let current = ''
   for (const part of folder.split('/').filter(Boolean)) {
     current = current ? `${current}/${part}` : part

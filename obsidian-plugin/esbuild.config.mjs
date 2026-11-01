@@ -26,7 +26,7 @@ const options = {
   format: 'cjs',
   platform: 'browser',
   target: 'es2022',
-  external: ['obsidian', 'electron'],
+  external: ['obsidian', 'electron', 'child_process', 'fs', 'os', 'path'],
   outfile: `${outdir}main.js`,
   define: {
     __SUPABASE_URL__: JSON.stringify(env.VITE_SUPABASE_URL),

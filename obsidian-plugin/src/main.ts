@@ -1,9 +1,11 @@
-// Personal Hub 플러그인 시작점 — 로그인, 1분마다 신호 보내기와 대기 메모 가져오기, '지금 가져오기' 버튼과 명령, 설정 탭을 Obsidian에 붙인다
+// Personal Hub 플러그인 시작점 — 로그인, 1분마다 신호 보내기와 대기 메모 처리(원문·AI 정제), '지금 가져오기' 버튼과 명령, 설정 탭을 Obsidian에 붙인다
 // 웹과 똑같이 공개 키 + 내 로그인으로 접속한다. RLS를 무시하는 service_role 키는 쓰지 않는다 (architecture.md 위험 1)
-import { App, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian'
+import { App, FileSystemAdapter, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { findClaude, stopClaude } from './claudeCode'
 import { fetchPendingMemos, type FetchResult } from './fetchMemos'
 import { sendHeartbeat } from './heartbeat'
+import { refinePendingMemos } from './refine'
 
 declare const __SUPABASE_URL__: string
 declare const __SUPABASE_KEY__: string
@@ -12,6 +14,8 @@ type PluginData = {
   deviceName: string
   /** 로그인 정보(토큰). 비밀번호는 저장하지 않는다 */
   auth: Record<string, string>
+  /** Claude Code 실행 파일 위치. 비어 있으면 스스로 찾는다 */
+  claudePath?: string
 }
 
 const DEFAULT_DATA: PluginData = { deviceName: '맥북', auth: {} }
@@ -32,6 +36,9 @@ export default class PersonalHubPlugin extends Plugin {
   data: PluginData = DEFAULT_DATA
   supabase!: SupabaseClient
   private running = false
+  private refining = false
+  private unloading = false
+  private warnedClaude = false
 
   async onload() {
     this.data = { ...DEFAULT_DATA, ...(await this.loadData()) }
@@ -77,6 +84,8 @@ export default class PersonalHubPlugin extends Plugin {
     } catch (e) {
       console.warn('Personal Hub: 신호를 보내지 못했어요.', e)
     }
+    // 정제 하나가 몇 분 걸릴 수 있어서, 기다리지 않고 원문 메모를 먼저 처리한다
+    void this.refine(deviceName)
 
     if (this.running) return
     this.running = true
@@ -89,6 +98,47 @@ export default class PersonalHubPlugin extends Plugin {
     } finally {
       this.running = false
     }
+  }
+
+  /** 정제 대기 메모를 하나씩 처리한다. 앞의 것이 끝나기 전에는 다음 확인을 건너뛴다 */
+  private async refine(deviceName: string) {
+    const adapter = this.app.vault.adapter
+    if (this.refining || !(adapter instanceof FileSystemAdapter)) return
+    this.refining = true
+    try {
+      const r = await refinePendingMemos(this.app, this.supabase, {
+        deviceName,
+        vaultPath: adapter.getBasePath(),
+        findClaude: () => this.locateClaude(),
+        stopped: () => this.unloading,
+      })
+      if (r.claudeMissing && !this.warnedClaude) {
+        this.warnedClaude = true
+        new Notice('Personal Hub: Claude Code를 찾지 못해 AI 정제 메모가 기다리고 있어요. 설정 탭에서 위치를 적어 주세요.', 0)
+      }
+      const lines = r.created.map((path) => `${path} 저장`)
+      if (r.failed.length) lines.push(`실패 ${r.failed.length}개:\n${r.failed.join('\n')}`)
+      if (lines.length) new Notice(`Personal Hub: ${lines.join('\n')}`, 8000)
+    } catch (e) {
+      console.warn('Personal Hub: 정제 대기 메모를 확인하지 못했어요.', e)
+    } finally {
+      this.refining = false
+    }
+  }
+
+  /** 한 번 찾은 위치는 저장해 두고, 파일이 사라졌으면 다시 찾는다 */
+  private async locateClaude(): Promise<string | null> {
+    const found = await findClaude(this.data.claudePath)
+    if (found && found !== this.data.claudePath) {
+      this.data.claudePath = found
+      await this.saveData(this.data)
+    }
+    return found
+  }
+
+  onunload() {
+    this.unloading = true
+    stopClaude()
   }
 
   /** 버튼을 빨리 두 번 눌러도 한 번만 돈다 */
@@ -171,6 +221,15 @@ class PersonalHubSettingTab extends PluginSettingTab {
     }
 
     new Setting(containerEl).setName('이 기기').setHeading()
+    new Setting(containerEl)
+      .setName('Claude Code 위치')
+      .setDesc('AI 정제에 써요. 보통은 스스로 찾으니 못 찾을 때만 적어 주세요.')
+      .addText((t) =>
+        t.setValue(this.plugin.data.claudePath ?? '').onChange(async (v) => {
+          this.plugin.data.claudePath = v.trim() || undefined
+          await this.plugin.saveData(this.plugin.data)
+        }),
+      )
     new Setting(containerEl)
       .setName('기기 이름')
       .setDesc('메모를 가져갈 때 DB에 "어느 기기가 가져갔는지"로 남아요.')
