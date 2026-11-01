@@ -1,8 +1,9 @@
-// Personal Hub 플러그인 시작점 — 로그인, '지금 가져오기' 버튼과 명령, 설정 탭을 Obsidian에 붙인다
+// Personal Hub 플러그인 시작점 — 로그인, 1분마다 신호 보내기와 대기 메모 가져오기, '지금 가져오기' 버튼과 명령, 설정 탭을 Obsidian에 붙인다
 // 웹과 똑같이 공개 키 + 내 로그인으로 접속한다. RLS를 무시하는 service_role 키는 쓰지 않는다 (architecture.md 위험 1)
 import { App, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { fetchPendingMemos } from './fetchMemos'
+import { fetchPendingMemos, type FetchResult } from './fetchMemos'
+import { sendHeartbeat } from './heartbeat'
 
 declare const __SUPABASE_URL__: string
 declare const __SUPABASE_KEY__: string
@@ -14,6 +15,18 @@ type PluginData = {
 }
 
 const DEFAULT_DATA: PluginData = { deviceName: '맥북', auth: {} }
+
+/** 신호를 보내고 대기 메모를 확인하는 간격 */
+const POLL_MS = 60 * 1000
+
+function summarize(r: FetchResult): string[] {
+  const lines: string[] = []
+  if (r.created) lines.push(`노트 ${r.created}개를 만들었어요.`)
+  if (r.existed) lines.push(`${r.existed}개는 이미 볼트에 있어서 상태만 완료로 바꿨어요.`)
+  if (r.skipped) lines.push(`${r.skipped}개는 다른 기기가 먼저 가져갔어요.`)
+  if (r.failed.length) lines.push(`실패 ${r.failed.length}개:\n${r.failed.join('\n')}`)
+  return lines
+}
 
 export default class PersonalHubPlugin extends Plugin {
   data: PluginData = DEFAULT_DATA
@@ -46,6 +59,36 @@ export default class PersonalHubPlugin extends Plugin {
     this.addRibbonIcon('download', 'Personal Hub: 지금 가져오기', () => this.fetchNow())
     this.addCommand({ id: 'fetch-now', name: '지금 가져오기', callback: () => this.fetchNow() })
     this.addSettingTab(new PersonalHubSettingTab(this.app, this))
+
+    // 막 켜졌을 때는 볼트 파일 목록이 덜 읽혀서 같은 노트를 못 알아볼 수 있다. 준비가 끝난 뒤 시작한다
+    this.app.workspace.onLayoutReady(() => {
+      void this.poll()
+      this.registerInterval(window.setInterval(() => void this.poll(), POLL_MS))
+    })
+  }
+
+  /** 로그인돼 있으면 신호를 보내고 대기 메모를 가져온다. 맥북이 잠에서 깬 직후처럼 실패해도 다음 1분에 다시 한다 */
+  private async poll() {
+    const { data } = await this.supabase.auth.getSession()
+    if (!data.session) return
+    const deviceName = this.data.deviceName.trim() || '맥북'
+    try {
+      await sendHeartbeat(this.supabase, deviceName)
+    } catch (e) {
+      console.warn('Personal Hub: 신호를 보내지 못했어요.', e)
+    }
+
+    if (this.running) return
+    this.running = true
+    try {
+      const lines = summarize(await fetchPendingMemos(this.app, this.supabase, deviceName))
+      // 가져올 것이 없을 때는 1분마다 알림이 뜨지 않게 조용히 넘어간다
+      if (lines.length) new Notice(`Personal Hub: ${lines.join('\n')}`, 8000)
+    } catch (e) {
+      console.warn('Personal Hub: 대기 메모를 확인하지 못했어요.', e)
+    } finally {
+      this.running = false
+    }
   }
 
   /** 버튼을 빨리 두 번 눌러도 한 번만 돈다 */
@@ -60,12 +103,7 @@ export default class PersonalHubPlugin extends Plugin {
     const notice = new Notice('Personal Hub: 대기 중인 메모를 가져오는 중…', 0)
     try {
       const r = await fetchPendingMemos(this.app, this.supabase, this.data.deviceName.trim() || '맥북')
-      const lines: string[] = []
-      if (r.created) lines.push(`노트 ${r.created}개를 만들었어요.`)
-      if (r.existed) lines.push(`${r.existed}개는 이미 볼트에 있어서 상태만 완료로 바꿨어요.`)
-      if (r.skipped) lines.push(`${r.skipped}개는 다른 기기가 먼저 가져갔어요.`)
-      if (r.failed.length) lines.push(`실패 ${r.failed.length}개:\n${r.failed.join('\n')}`)
-      notice.setMessage(`Personal Hub: ${lines.join('\n') || '가져올 메모가 없어요.'}`)
+      notice.setMessage(`Personal Hub: ${summarize(r).join('\n') || '가져올 메모가 없어요.'}`)
     } catch (e) {
       notice.setMessage(`Personal Hub: 가져오지 못했어요. ${e instanceof Error ? e.message : String(e)}`)
     } finally {
