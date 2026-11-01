@@ -1,5 +1,6 @@
 // 메모 잠그기 규칙 — 그대로 저장과 AI 정제가 함께 쓴다. 두 번 처리되지 않게 '처리중'으로 바꾸고, 멈춘 작업을 다시 집어 간다
 // 단계별 설명은 docs/architecture.md 7절 결정 B에 있다
+import { homedir } from 'os'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** 처리 중인 채 이 시간이 지나면 버려진 작업으로 보고 다시 집어 간다 (결정 B) */
@@ -15,6 +16,13 @@ export type ClaimableMemo = {
 }
 
 export type ClaimResult = '잠금' | '건너뜀' | '포기'
+
+/** DB에 적을 실패 이유. 파일 오류에는 절대경로가 섞여 나오는데, 절대경로는 서버에 올리지 않는다 (CLAUDE.md 5절) */
+export function errorText(e: unknown, vaultPath: string): string {
+  const message = e instanceof Error ? e.message : String(e)
+  const withoutVault = vaultPath ? message.split(vaultPath).join('볼트') : message
+  return withoutVault.split(homedir()).join('~')
+}
 
 /** 기다리는 상태이거나, '처리중'인데 10분 넘게 멈춰 있는 메모를 고르는 조건 */
 export function pendingFilter(waitingStatus: string): string {

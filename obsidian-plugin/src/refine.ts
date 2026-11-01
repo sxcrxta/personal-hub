@@ -2,7 +2,7 @@
 // 단계별 설명은 docs/architecture.md 2-2절에 있다
 import { TFile, type App } from 'obsidian'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { claimMemo, pendingFilter, type ClaimableMemo } from './claim'
+import { claimMemo, errorText, pendingFilter, type ClaimableMemo } from './claim'
 import { runClaude } from './claudeCode'
 import { ensureFolder } from './fetchMemos'
 import { noteBody, notePath } from './noteFile'
@@ -83,7 +83,7 @@ export async function refinePendingMemos(app: App, supabase: SupabaseClient, opt
     } catch (e) {
       // 꺼지는 중에 멈춘 것은 실패가 아니다. '처리중'으로 남겨 두면 10분 뒤 다시 집어 간다
       if (opts.stopped()) break
-      const message = e instanceof Error ? e.message : String(e)
+      const message = errorText(e, opts.vaultPath)
       await supabase.from('memos').update({ status: '실패', error_message: message }).eq('id', memo.id)
       result.failed.push(`메모 ${memo.id}: ${message}`)
     }

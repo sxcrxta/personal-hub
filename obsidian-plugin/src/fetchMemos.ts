@@ -1,8 +1,8 @@
 // '지금 가져오기' 한 번의 흐름 — 대기 메모를 잠그고, 볼트에 노트를 만들고, 상태와 파일 경로를 DB에 되돌려 적는다
 // 단계별 설명은 docs/architecture.md 2-1절(4~6단계)과 7절 결정 B에 있다
-import { TFile, type App } from 'obsidian'
+import { FileSystemAdapter, TFile, type App } from 'obsidian'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { claimMemo, pendingFilter, type ClaimableMemo } from './claim'
+import { claimMemo, errorText, pendingFilter, type ClaimableMemo } from './claim'
 import { noteBody, noteFileName, notePath } from './noteFile'
 
 type MemoRow = ClaimableMemo & {
@@ -69,7 +69,8 @@ export async function fetchPendingMemos(app: App, supabase: SupabaseClient, devi
         .eq('id', memo.id)
       if (doneError) throw doneError
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e)
+      const adapter = app.vault.adapter
+      const message = errorText(e, adapter instanceof FileSystemAdapter ? adapter.getBasePath() : '')
       await supabase.from('memos').update({ status: '실패', error_message: message }).eq('id', memo.id)
       result.failed.push(`메모 ${memo.id}: ${message}`)
     }
