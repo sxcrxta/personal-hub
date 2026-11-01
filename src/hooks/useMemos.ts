@@ -34,7 +34,7 @@ export function useWorkers(): { devices: WorkerDevice[]; checkedAt: number } {
   return { devices, checkedAt }
 }
 
-/** 워커가 하나라도 켜져 있는지 — 꺼져 있으면 AI 정제 버튼을 잠근다 */
+/** 워커가 하나라도 켜져 있는지 — 메모 화면의 켜짐/꺼짐 표시에 쓴다 */
 export function useWorkerOnline(): boolean {
   const { devices, checkedAt } = useWorkers()
   return devices.some((d) => isWorkerAlive(d, checkedAt))

@@ -49,11 +49,11 @@ export default function MemoPage() {
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <div className="flex min-w-0 flex-col gap-4">
             <WorkerStatusCard online={workerOnline} />
-            <MemoComposer workerOnline={workerOnline} />
+            <MemoComposer />
             <section className="flex gap-3 rounded-lg border bg-surface-container-low p-4 text-body-sm text-on-surface-variant">
               <Info size={16} strokeWidth={1.75} className="mt-0.5 shrink-0" />
               <p>
-                메모는 먼저 서버에 '대기 중'으로 남고, 맥북에서 Obsidian을 열면 볼트 노트가 돼요. 맥북이 꺼져 있어도 메모는 안전하게 기다려요.
+                메모는 먼저 서버에 남아요. 그대로 저장한 메모는 Obsidian에서 '지금 가져오기'를 누르면, AI 정제 메모는 맥북 프로그램이 켜져 있을 때 볼트 노트가 돼요. 맥북이 꺼져 있어도 메모는 안전하게 기다려요.
               </p>
             </section>
           </div>

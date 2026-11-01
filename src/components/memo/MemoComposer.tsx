@@ -1,5 +1,5 @@
 // Obsidian 메모 쓰기 — 저장할 폴더, 본문(마크다운), 해시태그, 저장 방식 두 가지. 두 번 눌러도 한 건만 저장된다
-import { FolderOpen, Lock, Save, Sparkles } from 'lucide-react'
+import { FolderOpen, Save, Sparkles } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { memoActions, memoDraftStore } from '../../hooks/useMemos.ts'
 import { useStore } from '../../hooks/useStore.ts'
@@ -11,11 +11,7 @@ import Markdown from '../common/Markdown.tsx'
 import MarkdownToolbar from './MarkdownToolbar.tsx'
 import TagInput from './TagInput.tsx'
 
-type Props = {
-  workerOnline: boolean
-}
-
-export default function MemoComposer({ workerOnline }: Props) {
+export default function MemoComposer() {
   const [settings] = useStore(settingsStore)
   const [draft, setDraft] = useStore(memoDraftStore)
   const [folder, setFolder] = useState<string | null>(null) // null이면 설정의 기본 폴더
@@ -28,14 +24,13 @@ export default function MemoComposer({ workerOnline }: Props) {
 
   async function save(mode: MemoSaveMode) {
     if (savingRef.current || !draft.content.trim()) return
-    if (mode === '정제' && !workerOnline) return
     savingRef.current = true
     setSaving(true)
     try {
       const id = await memoActions.save(draft.content.trim(), draft.tags, mode, target)
       setDraft({ content: '', tags: [] })
       setPreview(false)
-      showToast(mode === '원문' ? `메모 ${id}번을 저장했어요. 맥북에서 가져가면 노트가 돼요` : `메모 ${id}번을 AI 정제 대기에 올렸어요`)
+      showToast(mode === '원문' ? `메모 ${id}번을 저장했어요. 맥북에서 가져가면 노트가 돼요` : `메모 ${id}번을 AI 정제 대기에 올렸어요. 맥북 프로그램이 켜져 있을 때 노트가 돼요`)
     } catch {
       // 쓰던 글은 지우지 않고 남겨 둔다 (architecture.md 위험 3)
       showToast('저장하지 못했어요. 쓰던 글은 남아 있으니 인터넷 연결을 확인하고 다시 눌러 주세요.')
@@ -114,24 +109,12 @@ export default function MemoComposer({ workerOnline }: Props) {
             <Save size={16} strokeWidth={1.75} />
             Obsidian에 그대로 저장
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => save('정제')}
-            disabled={!canSave || !workerOnline}
-            title={workerOnline ? '' : '맥북 프로그램이 꺼져 있어서 쓸 수 없어요'}
-            className="flex-1 md:flex-none"
-          >
-            {workerOnline ? <Sparkles size={16} strokeWidth={1.75} /> : <Lock size={16} strokeWidth={1.75} />}
+          <Button variant="primary" onClick={() => save('정제')} disabled={!canSave} className="flex-1 md:flex-none">
+            <Sparkles size={16} strokeWidth={1.75} />
             AI로 정제하여 저장
           </Button>
         </div>
       </div>
-      {!workerOnline && (
-        <p className="border-t px-4 py-2 text-body-sm text-on-surface-variant">
-          <Lock size={12} strokeWidth={2} className="mr-1 inline" />
-          AI 정제는 맥북 프로그램이 켜져 있을 때만 쓸 수 있어요.
-        </p>
-      )}
     </section>
   )
 }
