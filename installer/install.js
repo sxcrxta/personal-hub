@@ -35,6 +35,25 @@ function findVaults() {
     .filter((path) => exists(`${path}/.obsidian`))
 }
 
+/** manifest의 버전. 파일이 없거나 깨졌으면 비교하지 않고 덮어쓰도록 빈 값을 돌려준다 */
+function versionIn(folder) {
+  try {
+    return readJson(`${folder}/manifest.json`, {}).version ?? ''
+  } catch {
+    return ''
+  }
+}
+
+/** '0.4.0'이 '0.5.0'보다 낮은지 숫자로 비교한다 */
+function isOlder(version, other) {
+  const a = version.split('.').map(Number)
+  const b = other.split('.').map(Number)
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) < (b[i] ?? 0)
+  }
+  return false
+}
+
 function install(vaultPath, pluginDir) {
   // 목록 파일이 깨져 있으면 아무것도 바꾸기 전에 멈춘다
   const listFile = `${vaultPath}/.obsidian/community-plugins.json`
@@ -42,6 +61,12 @@ function install(vaultPath, pluginDir) {
   if (!Array.isArray(enabled)) throw new Error('community-plugins.json의 내용이 목록이 아니에요.')
 
   const target = `${vaultPath}/.obsidian/plugins/${PLUGIN_ID}`
+  // 예전에 열어 둔 설치 디스크의 앱을 실행하면 옛 버전이 새 버전을 덮어쓴다 (11월 1일에 실제로 일어남)
+  const bundled = versionIn(pluginDir)
+  const installed = versionIn(target)
+  if (bundled && installed && isOlder(bundled, installed)) {
+    throw new Error(`이 볼트에는 이미 더 새로운 ${installed} 버전이 있어요. 이 설치 파일은 ${bundled} 버전이에요. 열려 있는 설치 디스크를 꺼내고 웹에서 다시 내려받아 주세요.`)
+  }
   system.doShellScript(`mkdir -p ${quote(target)}`)
   for (const name of PLUGIN_FILES) {
     system.doShellScript(`cp ${quote(`${pluginDir}/${name}`)} ${quote(`${target}/${name}`)}`)
