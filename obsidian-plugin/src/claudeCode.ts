@@ -81,7 +81,14 @@ export function runClaude(claudePath: string, vaultPath: string, message: string
         return
       }
       // 로그인 만료처럼 Claude Code 쪽에서 막히면 is_error와 이유가 온다
-      const parsed = JSON.parse(stdout) as { result?: string; is_error?: boolean }
+      let parsed: { result?: string; is_error?: boolean }
+      try {
+        parsed = JSON.parse(stdout)
+      } catch {
+        // 여기서 던지면 기다리는 쪽이 끝나지 않아 뒤의 정제까지 전부 멈춘다 (11월 1일 시험)
+        reject(new Error(`Claude Code의 답을 읽지 못했어요: ${stdout.trim().slice(-200)}`))
+        return
+      }
       if (parsed.is_error) reject(new Error(`Claude Code 오류: ${(parsed.result ?? '').slice(0, 200)}`))
       else resolve(parsed.result ?? '')
     })
