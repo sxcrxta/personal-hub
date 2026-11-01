@@ -1,4 +1,4 @@
-// Obsidian 메모와 단순 메모장 읽고 쓰기 — 메모는 '대기 중'으로 쌓아 두면 맥북 프로그램이 가져간다
+// Obsidian 메모와 단순 메모장 읽고 쓰기 — 메모는 '대기 중'으로 쌓아 두면 플러그인이 가져간다
 import { useEffect, useState } from 'react'
 import type { MemoSaveMode, Note, WorkerDevice } from '../types/data.ts'
 import { now, toUtc } from '../lib/date.ts'
@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase.ts'
 import { withUndo } from './undo.ts'
 import { useStore } from './useStore.ts'
 
-/** 워커 신호가 이 시간 안에 왔으면 켜져 있다고 본다 (워커는 1분마다 보낸다) */
+/** 플러그인 신호가 이 시간 안에 왔으면 켜져 있다고 본다 (플러그인은 1분마다 보낸다) */
 const WORKER_ALIVE_MS = 2 * 60 * 1000
 
 /** 저장 전에 쓰던 글 — 저장에 실패하거나 창을 닫아도 남아 있게 */
@@ -19,7 +19,7 @@ export function isWorkerAlive(device: WorkerDevice, at: number): boolean {
   return at - new Date(device.lastSeenAt).getTime() < WORKER_ALIVE_MS
 }
 
-/** 워커 기기 목록과 확인한 시각. 30초마다 DB에서 신호를 다시 읽는다 */
+/** 연결 기기 목록과 확인한 시각. 30초마다 DB에서 신호를 다시 읽는다 */
 export function useWorkers(): { devices: WorkerDevice[]; checkedAt: number } {
   const [devices] = useStore(workersStore)
   const [checkedAt, setCheckedAt] = useState(() => Date.now())
@@ -34,7 +34,7 @@ export function useWorkers(): { devices: WorkerDevice[]; checkedAt: number } {
   return { devices, checkedAt }
 }
 
-/** 워커가 하나라도 켜져 있는지 — 메모 화면의 켜짐/꺼짐 표시에 쓴다 */
+/** 플러그인이 하나라도 켜져 있는지 — 메모 화면의 켜짐/꺼짐 표시에 쓴다 */
 export function useWorkerOnline(): boolean {
   const { devices, checkedAt } = useWorkers()
   return devices.some((d) => isWorkerAlive(d, checkedAt))

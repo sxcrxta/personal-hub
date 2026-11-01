@@ -71,7 +71,7 @@ export default function ResurfaceNoteCard() {
         </>
       ) : (
         <p className="mt-5 text-body-md text-on-surface-variant">
-          아직 가져온 노트가 없어요. 맥북 프로그램이 켜지면 볼트에서 노트를 골라 와요.
+          아직 가져온 노트가 없어요. Obsidian이 열려 있으면 볼트에서 노트를 골라 와요.
         </p>
       )}
     </section>

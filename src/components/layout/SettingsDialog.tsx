@@ -1,8 +1,9 @@
-// 설정 창 — 사이드바(폰은 상단바)의 설정 버튼으로 연다. 계정, 볼트 폴더와 파일 이름 형식, 맥북 프로그램 기기 목록 (알림·테마는 7·8회차)
-import { LogOut } from 'lucide-react'
+// 설정 창 — 사이드바(폰은 상단바)의 설정 버튼으로 연다. 계정, 볼트 폴더와 파일 이름 형식, Obsidian 연결 기기와 설치 파일 (알림·테마는 7·8회차)
+import { Download, LogOut } from 'lucide-react'
 import { useStore } from '../../hooks/useStore.ts'
 import { cleanFolder, isWorkerAlive, useWorkers } from '../../hooks/useMemos.ts'
 import { authStore } from '../../lib/auth.ts'
+import { INSTALLER_URL } from '../../lib/installer.ts'
 import { daysFromToday, formatMonthDay, formatTime, fromUtc } from '../../lib/date.ts'
 import { settingsStore } from '../../lib/profile.ts'
 import { supabase } from '../../lib/supabase.ts'
@@ -66,7 +67,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
           <p className="text-body-sm text-on-surface-variant">{'{번호}'} 자리에 메모 번호가 들어가서 같은 노트가 두 번 생기지 않아요.</p>
         </section>
         <section className="space-y-3">
-          <h3 className="text-headline-sm">맥북 프로그램</h3>
+          <h3 className="text-headline-sm">Obsidian 연결</h3>
           {devices.length ? (
             <ul className="divide-y rounded border">
               {devices.map((d) => {
@@ -86,9 +87,17 @@ export default function SettingsDialog({ open, onClose }: Props) {
             </ul>
           ) : (
             <p className="text-body-sm text-on-surface-variant">
-              아직 등록된 기기가 없어요. 맥북에서 워커를 로그인하면 여기에 생겨요.
+              아직 연결된 기기가 없어요. 설치 파일로 플러그인을 넣고 로그인하면 여기에 생겨요.
             </p>
           )}
+          <a
+            href={INSTALLER_URL}
+            download
+            className="inline-flex items-center gap-2 text-label-md text-primary-container hover:underline"
+          >
+            <Download size={16} strokeWidth={1.75} />
+            Mac 설치 파일 내려받기
+          </a>
         </section>
         <section className="rounded border bg-surface-container-low p-4 text-body-sm text-on-surface-variant">
           알림 켜기, 테마 고르기는 곧 여기에 생겨요.

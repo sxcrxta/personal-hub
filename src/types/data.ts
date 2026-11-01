@@ -88,7 +88,7 @@ export type Assignment = {
   steps: { id: string; title: string; done: boolean }[]
 }
 
-/** 워커가 볼트에서 골라 올린 예전 노트 (웹은 읽기만 한다) */
+/** 플러그인이 볼트에서 골라 올린 예전 노트 (웹은 읽기만 한다) */
 export type VaultNote = {
   id: string
   title: string
@@ -98,7 +98,7 @@ export type VaultNote = {
   content: string // 마크다운 원문
 }
 
-/** Obsidian으로 보낼 메모 — 메모이자 맥북 프로그램이 가져갈 작업 */
+/** Obsidian으로 보낼 메모 — 메모이자 플러그인이 가져갈 작업 */
 export type MemoSaveMode = '원문' | '정제'
 export type MemoStatus = '대기중' | '정제대기' | '처리중' | '완료' | '실패'
 
@@ -109,12 +109,12 @@ export type Memo = {
   saveMode: MemoSaveMode
   status: MemoStatus
   targetFolder: string // 저장 시점의 볼트 안쪽 폴더
-  notePath?: string // 맥북 프로그램이 되돌려 적는 파일 경로
+  notePath?: string // 플러그인이 되돌려 적는 파일 경로
   errorMessage?: string
   createdAt: string // UTC ISO
 }
 
-/** 맥북 워커 기기 — 워커가 1분마다 마지막 신호 시각을 적는다 */
+/** 플러그인 기기 — 플러그인이 1분마다 마지막 신호 시각을 적는다 */
 export type WorkerDevice = {
   id: string
   name: string

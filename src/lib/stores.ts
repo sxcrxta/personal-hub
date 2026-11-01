@@ -243,7 +243,7 @@ export function memoFromRow(r: Row): Memo {
 }
 
 // 새 메모는 번호를 DB가 정해야 해서 useMemos의 memoActions.save가 직접 넣는다.
-// 여기서는 웹이 고칠 수 있는 열(다시 시도할 때의 상태 등)만 보낸다. 파일 경로·가져간 기기 같은 맥북 프로그램의 칸은 건드리지 않는다
+// 여기서는 웹이 고칠 수 있는 열(다시 시도할 때의 상태 등)만 보낸다. 파일 경로·가져간 기기 같은 플러그인의 칸은 건드리지 않는다
 export const memosStore = createSyncedStore<Memo[]>('memos', {
   empty: () => [],
   load: async () => (await selectAll('memos')).map(memoFromRow),
@@ -277,7 +277,7 @@ export const notesStore = createSyncedStore<Note[]>('notes', {
 
 // ───────── 오늘 ─────────
 
-/** 워커가 볼트에서 골라 올린 예전 노트 (웹은 읽기만 한다) */
+/** 플러그인이 볼트에서 골라 올린 예전 노트 (웹은 읽기만 한다) */
 export const vaultNotesStore = createSyncedStore<VaultNote[]>('vault-notes', {
   empty: () => [],
   async load() {
@@ -310,7 +310,7 @@ export const todayNoteStore = createSyncedStore<{ date: string; noteId: string }
   toRows: (pick) => ({ daily_notes: pick ? [{ note_date: pick.date, vault_note_id: pick.noteId }] : [] }),
 })
 
-// ───────── 워커 ─────────
+// ───────── 연결 기기 ─────────
 
 const workerFromRow = (r: Row): WorkerDevice => ({
   id: r.id as string,
@@ -318,13 +318,13 @@ const workerFromRow = (r: Row): WorkerDevice => ({
   lastSeenAt: r.last_seen_at as string,
 })
 
-/** 맥북 워커 기기 목록. 워커만 적고 웹은 읽기만 한다 */
+/** Obsidian 플러그인 기기 목록. 플러그인만 적고 웹은 읽기만 한다 */
 export const workersStore = createSyncedStore<WorkerDevice[]>('workers', {
   empty: () => [],
   load: async () => (await selectAll('worker_devices', 'id, name, last_seen_at')).map(workerFromRow),
 })
 
-/** 워커 신호는 1분마다 바뀌어서, 화면이 열려 있는 동안 DB에서 다시 읽어 온다 */
+/** 플러그인 신호는 1분마다 바뀌어서, 화면이 열려 있는 동안 DB에서 다시 읽어 온다 */
 export async function refreshWorkers() {
   const rows = await selectAll('worker_devices', 'id, name, last_seen_at')
   workersStore.applyRemote(() => rows.map(workerFromRow))

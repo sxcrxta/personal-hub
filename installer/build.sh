@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mac 설치 파일 만들기 — 플러그인을 빌드해 install.js와 함께 .app으로 묶고, dist/PersonalHub-Mac.dmg로 만든다
+# Mac 설치 파일 만들기 — 플러그인을 빌드해 install.js와 함께 .app으로 묶고, dmg로 만들어 public/downloads에 넣는다
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -21,3 +21,7 @@ cp "$built_plugin/main.js" "$built_plugin/manifest.json" "$app/Contents/Resource
 codesign --force --deep --sign - "$app"
 
 hdiutil create -volname "$app_name" -srcfolder dist/image -format UDZO -ov dist/PersonalHub-Mac.dmg
+
+# 웹이 그대로 내려주도록 public에 넣는다
+mkdir -p ../public/downloads
+cp dist/PersonalHub-Mac.dmg ../public/downloads/

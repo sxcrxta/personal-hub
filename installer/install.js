@@ -75,6 +75,8 @@ function runWithDialogs() {
   )
 }
 
+// osascript와 .app이 이 이름의 함수를 시작점으로 부른다
+// oxlint-disable-next-line no-unused-vars
 function run(argv) {
   if (argv && argv.length === 2) {
     install(argv[0], argv[1])
