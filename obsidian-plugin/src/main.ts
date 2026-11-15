@@ -1,8 +1,9 @@
-// Personal Hub 플러그인 시작점 — 로그인, 1분마다 신호 보내기와 대기 메모 처리(원문·AI 정제), '지금 가져오기' 버튼과 명령, 설정 탭을 Obsidian에 붙인다
+// Personal Hub 플러그인 시작점 — 로그인, 1분마다 신호 보내기와 대기 메모 처리(원문·AI 정제), 하루 한 번 오늘의 노트 고르기,'지금 가져오기' 버튼과 명령, 설정 탭을 Obsidian에 붙인다
 // 웹과 똑같이 공개 키 + 내 로그인으로 접속한다. RLS를 무시하는 service_role 키는 쓰지 않는다 (architecture.md 위험 1)
 import { App, FileSystemAdapter, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { findClaude, stopClaude } from './claudeCode'
+import { pickDailyNote } from './dailyNote'
 import { fetchPendingMemos, type FetchResult } from './fetchMemos'
 import { sendHeartbeat } from './heartbeat'
 import { refinePendingMemos } from './refine'
@@ -39,6 +40,8 @@ export default class PersonalHubPlugin extends Plugin {
   private refining = false
   private unloading = false
   private warnedClaude = false
+  /** 오늘의 노트를 확인한 날(이 컴퓨터 날짜). 하루에 한 번만 DB에 묻는다 */
+  private dailyCheckedOn = ''
 
   async onload() {
     this.data = { ...DEFAULT_DATA, ...(await this.loadData()) }
@@ -84,6 +87,7 @@ export default class PersonalHubPlugin extends Plugin {
     } catch (e) {
       console.warn('Personal Hub: 신호를 보내지 못했어요.', e)
     }
+    void this.dailyNote()
     // 정제 하나가 몇 분 걸릴 수 있어서, 기다리지 않고 원문 메모를 먼저 처리한다
     void this.refine(deviceName)
 
@@ -97,6 +101,21 @@ export default class PersonalHubPlugin extends Plugin {
       console.warn('Personal Hub: 대기 메모를 확인하지 못했어요.', e)
     } finally {
       this.running = false
+    }
+  }
+
+  /** 날짜가 바뀐 뒤 첫 확인 때 오늘의 노트를 고른다. 실패하면 다음 1분에 다시 한다 */
+  private async dailyNote() {
+    const today = new Date().toDateString()
+    if (this.dailyCheckedOn === today) return
+    this.dailyCheckedOn = today
+    try {
+      const r = await pickDailyNote(this.app, this.supabase)
+      if (r.status === 'picked') new Notice(`Personal Hub: 오늘의 노트로 '${r.path}'를 골랐어요.`, 6000)
+      if (r.status === 'empty') console.info(`Personal Hub: '${r.folder}' 폴더에 노트가 없어 오늘의 노트를 고르지 못했어요.`)
+    } catch (e) {
+      this.dailyCheckedOn = ''
+      console.warn('Personal Hub: 오늘의 노트를 고르지 못했어요.', e)
     }
   }
 
