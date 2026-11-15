@@ -26,3 +26,4 @@ npm-debug.log*
 # 플러그인 시험용 볼트 — 내 메모라서 코드 저장소에 올라가면 안 된다.
 .obsidian/
 test-vault/
+supabase/.temp/
