@@ -9,13 +9,14 @@ import { showToast } from './toast.ts'
 /** 할 일 정렬 방식: 마감 임박순 / 최근 추가순 / 이름순 */
 export type TodoSort = 'due' | 'recent' | 'name'
 
-type Profile = Settings & { todoSort: TodoSort; onboardingDismissed: boolean }
+type Profile = Settings & { todoSort: TodoSort; onboardingDismissed: boolean; reviewBeforeSave: boolean }
 
 const DEFAULTS: Profile = {
   vaultFolder: '0. Slip-box',
   fileNameFormat: 'yyyy-MM-dd 메모 {번호}',
   todoSort: 'due',
   onboardingDismissed: false,
+  reviewBeforeSave: false,
 }
 
 /** 입력칸에서 글자를 칠 때마다 DB에 쓰지 않도록, 마지막으로 고친 뒤 이만큼 기다렸다가 쓴다 */
@@ -29,7 +30,7 @@ async function load(userId: string) {
   loadedFor = userId
   const { data, error } = await supabase
     .from('profiles')
-    .select('vault_folder, file_name_format, todo_sort, onboarding_dismissed')
+    .select('vault_folder, file_name_format, todo_sort, onboarding_dismissed, review_before_save')
     .eq('user_id', userId)
     .single()
   if (loadedFor !== userId) return // 그사이 다른 계정으로 바뀌었으면 버린다
@@ -42,6 +43,7 @@ async function load(userId: string) {
     fileNameFormat: data.file_name_format,
     todoSort: data.todo_sort,
     onboardingDismissed: data.onboarding_dismissed,
+    reviewBeforeSave: data.review_before_save,
   })
 }
 
@@ -56,6 +58,7 @@ async function save() {
       file_name_format: p.fileNameFormat,
       todo_sort: p.todoSort,
       onboarding_dismissed: p.onboardingDismissed,
+      review_before_save: p.reviewBeforeSave,
     })
     .eq('user_id', userId)
   if (error) showToast('설정을 저장하지 못했어요. 인터넷 연결을 확인해 주세요.')
@@ -113,4 +116,10 @@ export const todoPrefsStore = view<{ sort: TodoSort }>(
 export const onboardingStore = view<{ dismissed: boolean }>(
   (p) => ({ dismissed: p.onboardingDismissed }),
   (p, v) => ({ ...p, onboardingDismissed: v.dismissed }),
+)
+
+/** AI 정제 결과를 저장 전에 웹에서 검토할지 (확장) */
+export const reviewPrefsStore = view<{ reviewBeforeSave: boolean }>(
+  (p) => ({ reviewBeforeSave: p.reviewBeforeSave }),
+  (p, v) => ({ ...p, reviewBeforeSave: v.reviewBeforeSave }),
 )

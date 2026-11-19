@@ -5,9 +5,10 @@ import { cleanFolder, isWorkerAlive, useWorkers } from '../../hooks/useMemos.ts'
 import { authStore } from '../../lib/auth.ts'
 import { INSTALLER_URL } from '../../lib/installer.ts'
 import { daysFromToday, formatMonthDay, formatTime, fromUtc } from '../../lib/date.ts'
-import { settingsStore } from '../../lib/profile.ts'
+import { reviewPrefsStore, settingsStore } from '../../lib/profile.ts'
 import { supabase } from '../../lib/supabase.ts'
 import Button from '../common/Button.tsx'
+import Checkbox from '../common/Checkbox.tsx'
 import Dialog from '../common/Dialog.tsx'
 import { Field, TextInput } from '../common/Field.tsx'
 import NotificationSettings from './NotificationSettings.tsx'
@@ -24,6 +25,7 @@ function lastSeenText(iso: string): string {
 
 export default function SettingsDialog({ open, onClose }: Props) {
   const [settings, setSettings] = useStore(settingsStore)
+  const [reviewPrefs, setReviewPrefs] = useStore(reviewPrefsStore)
   const [{ session }] = useStore(authStore)
   const { devices, checkedAt } = useWorkers()
 
@@ -66,6 +68,25 @@ export default function SettingsDialog({ open, onClose }: Props) {
             />
           </Field>
           <p className="text-body-sm text-on-surface-variant">{'{번호}'} 자리에 메모 번호가 들어가서 같은 노트가 두 번 생기지 않아요.</p>
+          <div className="flex items-start gap-3 rounded border bg-surface-container-low p-3">
+            <div className="pt-0.5">
+              <Checkbox
+                checked={reviewPrefs.reviewBeforeSave}
+                onChange={() => setReviewPrefs({ reviewBeforeSave: !reviewPrefs.reviewBeforeSave })}
+                label="AI 정제 결과를 저장 전에 검토하기"
+              />
+            </div>
+            <button
+              type="button"
+              className="min-w-0 text-left"
+              onClick={() => setReviewPrefs({ reviewBeforeSave: !reviewPrefs.reviewBeforeSave })}
+            >
+              <span className="block text-body-md">AI 정제 결과를 저장 전에 검토하기</span>
+              <span className="block text-body-sm text-on-surface-variant">
+                켜면 AI가 정리한 노트가 바로 볼트로 가지 않고, 메모 화면에서 원문과 비교해 고친 뒤 저장해요. 폰에서도 돼요.
+              </span>
+            </button>
+          </div>
         </section>
         <section className="space-y-3">
           <h3 className="text-headline-sm">Obsidian 연결</h3>

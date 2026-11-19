@@ -8,9 +8,11 @@ type Props = {
   title: ReactNode
   children: ReactNode
   size?: 'md' | 'lg'
+  /** 스크롤되는 내용 아래에 고정되는 버튼 줄. 폰에서 내용이 길어도 버튼이 손 닿는 곳에 있다 */
+  footer?: ReactNode
 }
 
-export default function Dialog({ open, onClose, title, children, size = 'md' }: Props) {
+export default function Dialog({ open, onClose, title, children, size = 'md', footer }: Props) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -47,7 +49,8 @@ export default function Dialog({ open, onClose, title, children, size = 'md' }: 
             <X size={18} strokeWidth={1.75} />
           </button>
         </div>
-        <div className="overflow-y-auto px-6 py-5 pb-[calc(20px+env(safe-area-inset-bottom))]">{children}</div>
+        <div className={`overflow-y-auto px-6 py-5 ${footer ? '' : 'pb-[calc(20px+env(safe-area-inset-bottom))]'}`}>{children}</div>
+        {footer && <div className="border-t px-6 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">{footer}</div>}
       </div>
     </div>
   )

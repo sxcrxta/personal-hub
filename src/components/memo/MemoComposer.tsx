@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { memoActions, memoDraftStore } from '../../hooks/useMemos.ts'
 import { useStore } from '../../hooks/useStore.ts'
 import type { MemoSaveMode } from '../../types/data.ts'
-import { settingsStore } from '../../lib/profile.ts'
+import { reviewPrefsStore, settingsStore } from '../../lib/profile.ts'
 import { showToast } from '../../lib/toast.ts'
 import Button from '../common/Button.tsx'
 import Markdown from '../common/Markdown.tsx'
@@ -14,6 +14,7 @@ import TagInput from './TagInput.tsx'
 export default function MemoComposer() {
   const [settings] = useStore(settingsStore)
   const [draft, setDraft] = useStore(memoDraftStore)
+  const [{ reviewBeforeSave }] = useStore(reviewPrefsStore)
   const [folder, setFolder] = useState<string | null>(null) // null이면 설정의 기본 폴더
   const [editingFolder, setEditingFolder] = useState(false)
   const [preview, setPreview] = useState(false)
@@ -30,7 +31,13 @@ export default function MemoComposer() {
       const id = await memoActions.save(draft.content.trim(), draft.tags, mode, target)
       setDraft({ content: '', tags: [] })
       setPreview(false)
-      showToast(mode === '원문' ? `메모 ${id}번을 저장했어요. Obsidian이 열려 있을 때 노트가 돼요` : `메모 ${id}번을 AI 정제 대기에 올렸어요. Obsidian이 열려 있을 때 노트가 돼요`)
+      showToast(
+        mode === '원문'
+          ? `메모 ${id}번을 저장했어요. Obsidian이 열려 있을 때 노트가 돼요`
+          : reviewBeforeSave
+            ? `메모 ${id}번을 AI 정제 대기에 올렸어요. 정리가 끝나면 아래 목록에서 검토해 주세요`
+            : `메모 ${id}번을 AI 정제 대기에 올렸어요. Obsidian이 열려 있을 때 노트가 돼요`,
+      )
     } catch {
       // 쓰던 글은 지우지 않고 남겨 둔다 (architecture.md 위험 3)
       showToast('저장하지 못했어요. 쓰던 글은 남아 있으니 인터넷 연결을 확인하고 다시 눌러 주세요.')
@@ -103,6 +110,7 @@ export default function MemoComposer() {
       <div className="flex flex-col gap-3 border-t bg-surface-container-low px-4 py-3 md:flex-row md:items-center">
         <span className="text-body-sm text-on-surface-variant tabular-nums">
           {draft.content.length}자 · 쓰는 중인 글은 이 브라우저에 임시로 남아요
+          {reviewBeforeSave && ' · AI 정제는 저장 전에 검토해요'}
         </span>
         <div className="flex flex-col gap-2 sm:flex-row md:ml-auto">
           <Button onClick={() => save('원문')} disabled={!canSave} className="flex-1 md:flex-none">

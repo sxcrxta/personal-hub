@@ -100,7 +100,7 @@ export type VaultNote = {
 
 /** Obsidian으로 보낼 메모 — 메모이자 플러그인이 가져갈 작업 */
 export type MemoSaveMode = '원문' | '정제'
-export type MemoStatus = '대기중' | '정제대기' | '처리중' | '완료' | '실패'
+export type MemoStatus = '대기중' | '정제대기' | '처리중' | '검토대기' | '저장대기' | '완료' | '실패'
 
 export type Memo = {
   id: number // 메모 번호. 파일 이름에 들어가 중복 생성을 막는다
@@ -112,6 +112,9 @@ export type Memo = {
   notePath?: string // 플러그인이 되돌려 적는 파일 경로
   errorMessage?: string
   createdAt: string // UTC ISO
+  review: boolean // 저장 전에 사람이 검토하는 메모
+  draftTitle?: string // 검토할 AI 정제 제목 (검토대기·저장대기일 때)
+  draftBody?: string // 검토할 AI 정제 본문
 }
 
 /** 플러그인 기기 — 플러그인이 1분마다 마지막 신호 시각을 적는다 */

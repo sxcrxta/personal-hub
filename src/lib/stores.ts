@@ -239,6 +239,9 @@ export function memoFromRow(r: Row): Memo {
     notePath: u(r.note_path as string | null),
     errorMessage: u(r.error_message as string | null),
     createdAt: r.created_at as string,
+    review: (r.review as boolean | null) ?? false,
+    draftTitle: u(r.draft_title as string | null),
+    draftBody: u(r.draft_body as string | null),
   }
 }
 
