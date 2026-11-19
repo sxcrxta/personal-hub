@@ -64,7 +64,7 @@ export default function ResurfaceNoteCard() {
             onClick={() => setViewerOpen(true)}
             className="relative mt-4 block max-h-48 w-full overflow-hidden rounded border bg-surface-container-low p-4 text-left"
           >
-            <Markdown source={note.content} />
+            <Markdown source={note.content} hideFrontmatter />
             <span className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-surface-container-low" />
           </button>
           <NoteViewerDialog note={note} open={viewerOpen} onClose={() => setViewerOpen(false)} />

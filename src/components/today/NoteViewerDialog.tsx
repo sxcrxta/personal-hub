@@ -24,7 +24,7 @@ export default function NoteViewerDialog({ note, open, onClose }: Props) {
         ))}
       </div>
       <div className="mt-5">
-        <Markdown source={note.content} />
+        <Markdown source={note.content} hideFrontmatter />
       </div>
     </Dialog>
   )
