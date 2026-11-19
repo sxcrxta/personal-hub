@@ -46,11 +46,31 @@ type RefineOptions = {
 /** 파일 이름과 위키링크에 쓸 수 없는 글자를 뺀다 */
 const cleanTitle = (title: string) => title.replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/^\.+/, '').replace(/\s+/g, ' ').trim()
 
+/** AI가 TITLE/---NOTE--- 형식을 어겼다. 같은 메모를 다시 물으면 대개 맞게 답해서 한 번 더 시도한다 */
+class FormatError extends Error {}
+
 function parseNote(result: string): { title: string; body: string } {
-  const note = result.match(/^TITLE:\s*(.+?)\s*\n+---NOTE---\n([\s\S]+)/m)
-  if (note) return { title: note[1], body: note[2].trim() }
-  const error = result.match(/^NOTE_ERROR:\s*(.+)$/m)
-  throw new Error(error ? `노트를 만들지 못했어요: ${error[1]}` : 'AI의 답이 약속한 형식이 아니에요.')
+  // 줄바꿈이 \r\n이거나, 머리 줄을 굵게(**TITLE:**)·코드 블록(```)으로 감싸는 정도는 받아 준다
+  const text = result.replace(/\r\n/g, '\n').replace(/^```[\w-]*[ \t]*$/gm, '')
+  const note = text.match(/^\**TITLE:?\**:?[ \t]*(.+?)[ \t]*\n+[ \t]*---NOTE---[ \t]*\n([\s\S]+)/m)
+  if (note) return { title: note[1].replace(/\*\*/g, '').trim(), body: note[2].trim() }
+  const error = text.match(/^\**NOTE_ERROR:?\**:?[ \t]*(.+)$/m)
+  if (error) throw new Error(`노트를 만들지 못했어요: ${error[1]}`)
+  throw new FormatError('AI의 답이 약속한 형식이 아니에요.')
+}
+
+/** 형식이 어긋나면 한 번 더 묻는다. 두 번 다 어긋나면 실패로 남기고, 원인을 볼 수 있게 답의 앞부분을 이 기기 콘솔에만 남긴다 */
+async function askNote(ask: (content: string) => Promise<string>, memo: MemoRow): Promise<{ title: string; body: string }> {
+  for (let attempt = 1; ; attempt++) {
+    const answer = await ask(memo.content)
+    try {
+      return parseNote(answer)
+    } catch (e) {
+      if (!(e instanceof FormatError)) throw e
+      console.warn(`Personal Hub: 메모 ${memo.id}의 AI 답이 형식에 맞지 않아요(${attempt}번째). 답의 앞부분:`, answer.slice(0, 300))
+      if (attempt >= 2) throw new Error("AI의 답이 두 번 다 약속한 형식이 아니에요. '다시 시도'를 눌러 주세요.")
+    }
+  }
 }
 
 /** 지난번에 노트를 만들고 DB에 적기 직전에 멈췄으면 그 노트가 있다. 이름이 제목이라 번호로 찾는다 (위험 2) */
@@ -104,7 +124,7 @@ export async function refinePendingMemos(app: App, supabase: SupabaseClient, opt
         result.created.push(existing.path)
         continue
       }
-      const { title, body } = parseNote(await ask(memo.content))
+      const { title, body } = await askNote(ask, memo)
       // Claude Code는 볼트를 직접 읽고 링크를 고르지만, Gemini는 후보 목록만 보므로 없는 노트 링크를 한 번 더 걸러 낸다
       const content = result.engine === 'Gemini' ? dropMissingLinks(app, body, memo.target_folder) : body
       const noteTitle = cleanTitle(title) || `메모 ${memo.id}`
