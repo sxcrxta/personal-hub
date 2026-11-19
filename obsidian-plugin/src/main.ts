@@ -5,6 +5,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { findClaude, stopClaude } from './claudeCode'
 import { pickDailyNote } from './dailyNote'
 import { fetchPendingMemos, type FetchResult } from './fetchMemos'
+import { askGemini } from './gemini'
 import { sendHeartbeat } from './heartbeat'
 import { refinePendingMemos } from './refine'
 
@@ -17,6 +18,10 @@ type PluginData = {
   auth: Record<string, string>
   /** Claude Code 실행 파일 위치. 비어 있으면 스스로 찾는다 */
   claudePath?: string
+  /** Claude Code가 없는 사람이 넣는 Gemini 무료 키. 이 파일에만 저장하고 DB에는 보내지 않는다 */
+  geminiKey?: string
+  /** Claude Code가 있어도 Gemini로 정제한다 */
+  preferGemini?: boolean
 }
 
 const DEFAULT_DATA: PluginData = { deviceName: '맥북', auth: {} }
@@ -40,6 +45,8 @@ export default class PersonalHubPlugin extends Plugin {
   private refining = false
   private unloading = false
   private warnedClaude = false
+  /** 같은 Gemini 사용량 안내를 1분마다 띄우지 않는다 */
+  private warnedBusy = ''
   /** 오늘의 노트를 확인한 날(이 컴퓨터 날짜). 하루에 한 번만 DB에 묻는다 */
   private dailyCheckedOn = ''
 
@@ -129,13 +136,18 @@ export default class PersonalHubPlugin extends Plugin {
         deviceName,
         vaultPath: adapter.getBasePath(),
         findClaude: () => this.locateClaude(),
+        geminiKey: this.data.geminiKey,
+        preferGemini: this.data.preferGemini,
         stopped: () => this.unloading,
       })
       if (r.claudeMissing && !this.warnedClaude) {
         this.warnedClaude = true
-        new Notice('Personal Hub: Claude Code를 찾지 못해 AI 정제 메모가 기다리고 있어요. 설정 탭에서 위치를 적어 주세요.', 0)
+        new Notice('Personal Hub: Claude Code를 찾지 못해 AI 정제 메모가 기다리고 있어요. 설정 탭에서 Claude Code 위치를 적거나, Gemini API 키를 붙여 넣어 주세요.', 0)
       }
-      const lines = r.created.map((path) => `${path} 저장`)
+      if (!r.claudeMissing) this.warnedClaude = false
+      if (r.busy && r.busy !== this.warnedBusy) new Notice(`Personal Hub: ${r.busy}`, 8000)
+      this.warnedBusy = r.busy ?? ''
+      const lines = r.created.map((path) => `${path} 저장 (${r.engine})`)
       if (r.failed.length) lines.push(`실패 ${r.failed.length}개:\n${r.failed.join('\n')}`)
       if (lines.length) new Notice(`Personal Hub: ${lines.join('\n')}`, 8000)
     } catch (e) {
@@ -239,16 +251,63 @@ class PersonalHubSettingTab extends PluginSettingTab {
       )
     }
 
-    new Setting(containerEl).setName('이 기기').setHeading()
+    new Setting(containerEl).setName('AI 정제').setHeading()
+    new Setting(containerEl)
+      .setName('Gemini API 키')
+      .setDesc(
+        createFragment((f) => {
+          f.appendText('Claude Code가 없으면 이 키로 정제해요. ')
+          f.createEl('a', { text: 'Google AI Studio', href: 'https://aistudio.google.com/apikey' })
+          f.appendText('에서 무료로 받을 수 있어요. 키는 이 컴퓨터에만 저장돼요. 무료 키는 보낸 메모와 연관 노트 후보의 앞부분을 Google이 서비스 개선에 쓸 수 있어요.')
+        }),
+      )
+      .addText((t) => {
+        t.inputEl.type = 'password'
+        t.setPlaceholder('AIza…')
+          .setValue(this.plugin.data.geminiKey ?? '')
+          .onChange(async (v) => {
+            this.plugin.data.geminiKey = v.trim() || undefined
+            await this.plugin.saveData(this.plugin.data)
+          })
+      })
+      .addButton((b) =>
+        b.setButtonText('키 확인').onClick(async () => {
+          const key = this.plugin.data.geminiKey
+          if (!key) {
+            new Notice('Personal Hub: 먼저 Gemini API 키를 붙여 넣어 주세요.')
+            return
+          }
+          b.setDisabled(true)
+          try {
+            await askGemini(key, '짧게 답한다.', '"확인"이라고만 답해.')
+            new Notice('Personal Hub: Gemini 키가 잘 동작해요.')
+          } catch (e) {
+            new Notice(`Personal Hub: ${e instanceof Error ? e.message : String(e)}`, 8000)
+          } finally {
+            b.setDisabled(false)
+          }
+        }),
+      )
+    new Setting(containerEl)
+      .setName('Claude Code가 있어도 Gemini 쓰기')
+      .setDesc('끄면 Claude Code를 먼저 쓰고, 찾지 못할 때만 Gemini를 써요.')
+      .addToggle((t) =>
+        t.setValue(this.plugin.data.preferGemini ?? false).onChange(async (v) => {
+          this.plugin.data.preferGemini = v
+          await this.plugin.saveData(this.plugin.data)
+        }),
+      )
     new Setting(containerEl)
       .setName('Claude Code 위치')
-      .setDesc('AI 정제에 써요. 보통은 스스로 찾으니 못 찾을 때만 적어 주세요.')
+      .setDesc('보통은 스스로 찾으니 못 찾을 때만 적어 주세요.')
       .addText((t) =>
         t.setValue(this.plugin.data.claudePath ?? '').onChange(async (v) => {
           this.plugin.data.claudePath = v.trim() || undefined
           await this.plugin.saveData(this.plugin.data)
         }),
       )
+
+    new Setting(containerEl).setName('이 기기').setHeading()
     new Setting(containerEl)
       .setName('기기 이름')
       .setDesc('메모를 가져갈 때 DB에 "어느 기기가 가져갔는지"로 남아요.')
