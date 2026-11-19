@@ -18,7 +18,13 @@ export default function MemoViewerDialog({ memo, onClose }: { memo: Memo; onClos
       <p className="mt-2 text-body-sm text-on-surface-variant">
         {memo.notePath ? `볼트 파일: ${memo.notePath}` : `아직 볼트에 없어요. ${memo.targetFolder} 폴더에 만들어질 예정이에요.`}
       </p>
-      {memo.errorMessage && <p className="mt-1 text-body-sm text-error">실패 이유: {memo.errorMessage}</p>}
+      {/* Gemini 사용량 초과처럼 기다리면 풀리는 문제는 정제대기로 돌아오며 안내만 남는다 */}
+      {memo.errorMessage &&
+        (memo.status === '실패' ? (
+          <p className="mt-1 text-body-sm text-error">실패 이유: {memo.errorMessage}</p>
+        ) : (
+          <p className="mt-1 text-body-sm text-on-surface-variant">안내: {memo.errorMessage}</p>
+        ))}
       {memo.tags.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {memo.tags.map((t) => (
