@@ -1,4 +1,5 @@
 // AI 정제 — '정제대기' 메모를 잠그고 Claude Code(없으면 Gemini)로 다듬은 뒤, 플러그인이 볼트에 노트를 만들고 결과를 DB에 되돌려 적는다
+// 저장 전 검토를 켠 메모는 노트 대신 초안을 DB에 올리고(검토대기), 웹에서 고쳐 저장하면(저장대기) 그 초안으로 노트를 만든다
 // 단계별 설명은 docs/architecture.md 2-2절에 있다
 import { TFile, type App } from 'obsidian'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -14,10 +15,14 @@ type MemoRow = ClaimableMemo & {
   tags: string[]
   target_folder: string
   created_at: string
+  review: boolean
 }
+
+type DraftRow = MemoRow & { draft_title: string | null; draft_body: string }
 
 export type RefineResult = {
   created: string[] // 만든 노트 경로
+  reviewed: number[] // 초안을 올려 검토를 기다리는 메모 번호
   failed: string[] // 실패한 메모 번호와 이유
   claudeMissing: boolean // Claude Code도 Gemini 키도 없어서 메모를 그대로 두었다
   engine?: Engine // 이번에 정제에 쓴 것
@@ -59,12 +64,16 @@ function freeNotePath(app: App, folder: string, title: string, memoId: number): 
   return app.vault.getAbstractFileByPath(path) ? notePath(folder, `${title} (메모 ${memoId}).md`) : path
 }
 
+const MEMO_COLUMNS = 'id, content, tags, target_folder, status, claimed_at, retry_count, created_at, review'
+
 export async function refinePendingMemos(app: App, supabase: SupabaseClient, opts: RefineOptions): Promise<RefineResult> {
-  const result: RefineResult = { created: [], failed: [], claudeMissing: false }
+  const result: RefineResult = { created: [], reviewed: [], failed: [], claudeMissing: false }
+  // 초안이 있는 메모는 사람이 고친 글이 있는 저장 단계라 다시 정제하지 않는다 (saveReviewedMemos가 맡는다)
   const { data: memos, error } = await supabase
     .from('memos')
-    .select('id, content, tags, target_folder, status, claimed_at, retry_count, created_at')
+    .select(MEMO_COLUMNS)
     .eq('save_mode', '정제')
+    .is('draft_body', null)
     .or(pendingFilter('정제대기'))
     .order('created_at')
   if (error) throw error
@@ -90,12 +99,28 @@ export async function refinePendingMemos(app: App, supabase: SupabaseClient, opt
 
     try {
       const existing = memo.status === '처리중' ? findNoteOfMemo(app, memo.id) : undefined
-      const path = existing?.path ?? (await createNote(app, memo, ask, result.engine === 'Gemini'))
-      const { error: doneError } = await supabase
-        .from('memos')
-        .update({ status: '완료', note_path: path, error_message: null })
-        .eq('id', memo.id)
-      if (doneError) throw doneError
+      if (existing) {
+        await markDone(supabase, memo.id, existing.path)
+        result.created.push(existing.path)
+        continue
+      }
+      const { title, body } = parseNote(await ask(memo.content))
+      // Claude Code는 볼트를 직접 읽고 링크를 고르지만, Gemini는 후보 목록만 보므로 없는 노트 링크를 한 번 더 걸러 낸다
+      const content = result.engine === 'Gemini' ? dropMissingLinks(app, body, memo.target_folder) : body
+      const noteTitle = cleanTitle(title) || `메모 ${memo.id}`
+
+      if (memo.review) {
+        // 볼트에는 아무것도 만들지 않고 초안만 올린다. 사람이 웹에서 고쳐 저장하면 그때 노트가 된다
+        const { error: draftError } = await supabase
+          .from('memos')
+          .update({ status: '검토대기', draft_title: noteTitle, draft_body: content, error_message: null })
+          .eq('id', memo.id)
+        if (draftError) throw draftError
+        result.reviewed.push(memo.id)
+        continue
+      }
+      const path = await writeNote(app, memo, noteTitle, content)
+      await markDone(supabase, memo.id, path)
       result.created.push(path)
     } catch (e) {
       // 꺼지는 중에 멈춘 것은 실패가 아니다. '처리중'으로 남겨 두면 10분 뒤 다시 집어 간다
@@ -114,12 +139,58 @@ export async function refinePendingMemos(app: App, supabase: SupabaseClient, opt
   return result
 }
 
-async function createNote(app: App, memo: MemoRow, ask: (content: string) => Promise<string>, checkLinks: boolean): Promise<string> {
-  const { title, body } = parseNote(await ask(memo.content))
-  const path = freeNotePath(app, memo.target_folder, cleanTitle(title) || `메모 ${memo.id}`, memo.id)
-  // Claude Code는 볼트를 직접 읽고 링크를 고르지만, Gemini는 후보 목록만 보므로 없는 노트 링크를 한 번 더 걸러 낸다
-  const content = checkLinks ? dropMissingLinks(app, body, path) : body
+/**
+ * 웹에서 검토를 마친(저장대기) 메모를 사람이 고친 초안 그대로 노트로 만든다. AI를 부르지 않아서 금방 끝난다
+ * 저장하다 멈춰 10분 넘게 '처리중'인 것도 초안이 있으면 여기서 다시 집어 간다
+ */
+export async function saveReviewedMemos(
+  app: App,
+  supabase: SupabaseClient,
+  deviceName: string,
+  vaultPath: string,
+): Promise<{ created: string[]; failed: string[] }> {
+  const result = { created: [] as string[], failed: [] as string[] }
+  const { data: memos, error } = await supabase
+    .from('memos')
+    .select(`${MEMO_COLUMNS}, draft_title, draft_body`)
+    .eq('save_mode', '정제')
+    .not('draft_body', 'is', null)
+    .or(pendingFilter('저장대기'))
+    .order('created_at')
+  if (error) throw error
+
+  for (const memo of memos as DraftRow[]) {
+    const claim = await claimMemo(supabase, memo, deviceName)
+    if (claim === '포기') result.failed.push(`메모 ${memo.id}: 재시도 한도 초과`)
+    if (claim !== '잠금') continue
+    try {
+      const existing = memo.status === '처리중' ? findNoteOfMemo(app, memo.id) : undefined
+      const title = cleanTitle(memo.draft_title ?? '') || `메모 ${memo.id}`
+      const path = existing?.path ?? (await writeNote(app, memo, title, memo.draft_body))
+      await markDone(supabase, memo.id, path)
+      result.created.push(path)
+    } catch (e) {
+      // 초안은 남겨 둔다. 웹에서 다시 시도하면 고친 글 그대로 다시 저장된다
+      const message = errorText(e, vaultPath)
+      await supabase.from('memos').update({ status: '실패', error_message: message }).eq('id', memo.id)
+      result.failed.push(`메모 ${memo.id}: ${message}`)
+    }
+  }
+  return result
+}
+
+/** 완료와 파일 경로를 적고, 다 쓴 초안은 비운다. 노트는 볼트에 있으니 DB에 두 벌 둘 이유가 없다 */
+async function markDone(supabase: SupabaseClient, memoId: number, path: string) {
+  const { error } = await supabase
+    .from('memos')
+    .update({ status: '완료', note_path: path, error_message: null, draft_title: null, draft_body: null })
+    .eq('id', memoId)
+  if (error) throw error
+}
+
+async function writeNote(app: App, memo: MemoRow, title: string, body: string): Promise<string> {
+  const path = freeNotePath(app, memo.target_folder, title, memo.id)
   await ensureFolder(app, path.split('/').slice(0, -1).join('/'))
-  await app.vault.create(path, noteBody(memo.id, memo.created_at, memo.tags, content))
+  await app.vault.create(path, noteBody(memo.id, memo.created_at, memo.tags, body))
   return path
 }

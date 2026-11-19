@@ -7,7 +7,7 @@ import { pickDailyNote } from './dailyNote'
 import { fetchPendingMemos, type FetchResult } from './fetchMemos'
 import { askGemini } from './gemini'
 import { sendHeartbeat } from './heartbeat'
-import { refinePendingMemos } from './refine'
+import { refinePendingMemos, saveReviewedMemos } from './refine'
 
 declare const __SUPABASE_URL__: string
 declare const __SUPABASE_KEY__: string
@@ -28,6 +28,18 @@ const DEFAULT_DATA: PluginData = { deviceName: '맥북', auth: {} }
 
 /** 신호를 보내고 대기 메모를 확인하는 간격 */
 const POLL_MS = 60 * 1000
+
+/** 원문 메모와, 웹에서 검토를 마친 메모를 함께 노트로 만든다. 둘 다 AI를 부르지 않아 금방 끝난다 */
+async function fetchAll(app: App, supabase: SupabaseClient, deviceName: string, vaultPath: string): Promise<FetchResult> {
+  const raw = await fetchPendingMemos(app, supabase, deviceName)
+  const reviewed = await saveReviewedMemos(app, supabase, deviceName, vaultPath)
+  return { ...raw, created: raw.created + reviewed.created.length, failed: [...raw.failed, ...reviewed.failed] }
+}
+
+function vaultPathOf(app: App): string {
+  const adapter = app.vault.adapter
+  return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : ''
+}
 
 function summarize(r: FetchResult): string[] {
   const lines: string[] = []
@@ -101,7 +113,7 @@ export default class PersonalHubPlugin extends Plugin {
     if (this.running) return
     this.running = true
     try {
-      const lines = summarize(await fetchPendingMemos(this.app, this.supabase, deviceName))
+      const lines = summarize(await fetchAll(this.app, this.supabase, deviceName, vaultPathOf(this.app)))
       // 가져올 것이 없을 때는 1분마다 알림이 뜨지 않게 조용히 넘어간다
       if (lines.length) new Notice(`Personal Hub: ${lines.join('\n')}`, 8000)
     } catch (e) {
@@ -148,6 +160,7 @@ export default class PersonalHubPlugin extends Plugin {
       if (r.busy && r.busy !== this.warnedBusy) new Notice(`Personal Hub: ${r.busy}`, 8000)
       this.warnedBusy = r.busy ?? ''
       const lines = r.created.map((path) => `${path} 저장 (${r.engine})`)
+      if (r.reviewed.length) lines.push(`메모 ${r.reviewed.join(', ')}번을 정제했어요. 웹에서 검토하고 저장하면 노트가 돼요 (${r.engine})`)
       if (r.failed.length) lines.push(`실패 ${r.failed.length}개:\n${r.failed.join('\n')}`)
       if (lines.length) new Notice(`Personal Hub: ${lines.join('\n')}`, 8000)
     } catch (e) {
@@ -183,7 +196,7 @@ export default class PersonalHubPlugin extends Plugin {
     this.running = true
     const notice = new Notice('Personal Hub: 대기 중인 메모를 가져오는 중…', 0)
     try {
-      const r = await fetchPendingMemos(this.app, this.supabase, this.data.deviceName.trim() || '맥북')
+      const r = await fetchAll(this.app, this.supabase, this.data.deviceName.trim() || '맥북', vaultPathOf(this.app))
       notice.setMessage(`Personal Hub: ${summarize(r).join('\n') || '가져올 메모가 없어요.'}`)
     } catch (e) {
       notice.setMessage(`Personal Hub: 가져오지 못했어요. ${e instanceof Error ? e.message : String(e)}`)
