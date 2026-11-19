@@ -131,35 +131,32 @@ export default function MemoReviewDialog({ memo, onClose }: { memo: Memo; onClos
         AI가 정리한 노트예요. 원문과 비교해 고친 뒤 저장하면 Obsidian이 열려 있을 때 <b>{memo.targetFolder}</b> 폴더에 노트가 돼요.
       </p>
 
-      {/* 폰: 탭으로 하나씩 */}
-      <div className="mt-4 md:hidden">
-        <div role="tablist" className="mb-3 grid grid-cols-2 rounded-md bg-surface-container p-1">
-          {(['원문', 'AI'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              role="tab"
-              aria-selected={tab === t}
-              onClick={() => setTab(t)}
-              className={`h-9 rounded text-label-md transition-colors ${
-                tab === t ? 'bg-surface-container-lowest text-on-surface shadow-card' : 'text-on-surface-variant'
-              }`}
-            >
-              {t === '원문' ? '원문' : `AI 정리${edited ? ' · 고침' : ''}`}
-            </button>
-          ))}
-        </div>
-        {tab === '원문' ? original : draft}
+      {/* 폰에서만 보이는 탭. 원문과 AI 정리는 한 번씩만 그린다 — 두 벌 그리면 서식 버튼이 숨은 쪽 편집칸을 건드린다 */}
+      <div role="tablist" className="mt-4 grid grid-cols-2 rounded-md bg-surface-container p-1 md:hidden">
+        {(['원문', 'AI'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={`h-9 rounded text-label-md transition-colors ${
+              tab === t ? 'bg-surface-container-lowest text-on-surface shadow-card' : 'text-on-surface-variant'
+            }`}
+          >
+            {t === '원문' ? '원문' : `AI 정리${edited ? ' · 고침' : ''}`}
+          </button>
+        ))}
       </div>
 
-      {/* 넓은 화면: 나란히 */}
-      <div className="mt-4 hidden gap-4 md:grid md:grid-cols-2">
-        <div className="min-w-0">
-          <h3 className="mb-2 text-label-md text-on-surface-variant">원문</h3>
+      {/* 폰: 고른 탭 하나만 보인다. 넓은 화면: 나란히 */}
+      <div className="mt-3 grid gap-4 md:mt-4 md:grid-cols-2">
+        <div className={`min-w-0 md:block ${tab === '원문' ? '' : 'hidden'}`}>
+          <h3 className="mb-2 hidden text-label-md text-on-surface-variant md:block">원문</h3>
           {original}
         </div>
-        <div className="min-w-0">
-          <h3 className="mb-2 text-label-md text-on-surface-variant">AI 정리{edited ? ' · 고침' : ''}</h3>
+        <div className={`min-w-0 md:block ${tab === 'AI' ? '' : 'hidden'}`}>
+          <h3 className="mb-2 hidden text-label-md text-on-surface-variant md:block">AI 정리{edited ? ' · 고침' : ''}</h3>
           {draft}
         </div>
       </div>
