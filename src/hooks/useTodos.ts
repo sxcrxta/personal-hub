@@ -1,6 +1,7 @@
 // 할 일 읽고 쓰기 — 추가, 체크, 하위 할 일, 오늘 할 일로 올리기, 캘린더 배치, 지우기(되돌리기)
 import type { Todo } from '../types/data.ts'
 import { fromDateAndTime, nextFullHour, now, todayKey, toUtc } from '../lib/date.ts'
+import { shiftReminders } from '../lib/reminderRules.ts'
 import { newId, type Store } from '../lib/storage.ts'
 import { categoriesStore, eventsStore, todoListsStore, todosStore } from '../lib/stores.ts'
 import { withUndo } from './undo.ts'
@@ -23,7 +24,15 @@ export const todoActions = {
   },
 
   update(id: string, patch: Partial<Todo>) {
-    todosStore.set((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+    todosStore.set((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t
+        const next = { ...t, ...patch }
+        // 마감을 옮기면 안 보낸 알림도 같이 옮긴다. 알림을 직접 넘기면(편집 창) 이미 옮긴 것이다
+        if (!patch.reminders && t.reminders?.length) next.reminders = shiftReminders(t.reminders, t, next)
+        return next
+      }),
+    )
     // 제목이 바뀌면 연결된 일정도 같이
     if (patch.title !== undefined) {
       const title = patch.title

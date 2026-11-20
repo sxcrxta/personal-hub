@@ -38,6 +38,14 @@ export type Todo = {
   todayDate?: string // '오늘 할 일'로 올린 날. 그날이 지나면 저절로 내려간다
   createdAt?: string // UTC ISO
   doneAt?: string // UTC ISO
+  reminders?: Reminder[] // 알림 여러 개. 하위 할 일에는 없다
+}
+
+/** 할 일 알림 — 정해진 시각에 폰으로 푸시가 간다. 발송 함수가 보낸 시각을 적는다 */
+export type Reminder = {
+  id: string
+  at: string // UTC ISO
+  sentAt?: string // UTC ISO, 보냈으면
 }
 
 /** 습관 */

@@ -9,7 +9,7 @@ const STATE_TEXT: Record<PushState, string> = {
   'needs-install': '아이폰은 Safari 공유 버튼 → "홈 화면에 추가"로 앱을 설치한 뒤, 그 앱에서 알림을 켤 수 있어요.',
   denied: '알림이 꺼져 있어요. 기기 설정 → 알림에서 Personal Hub(또는 브라우저)를 허용해 주세요.',
   off: '이 기기는 알림을 받지 않아요.',
-  on: '이 기기로 알림이 와요. 습관에 알림 시각을 정하면 그 시각에 알려 드려요.',
+  on: '이 기기로 알림이 와요. 습관이나 할 일에 알림 시각을 정하면 그 시각에 알려 드려요.',
 }
 
 export default function NotificationSettings() {

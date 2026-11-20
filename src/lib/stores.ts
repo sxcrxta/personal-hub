@@ -30,7 +30,7 @@ export const todoListsStore = createSyncedStore<TodoList[]>('todo-lists', {
 export const todosStore = createSyncedStore<Todo[]>('todos', {
   empty: () => [],
   async load() {
-    const rows = await selectAll('todos')
+    const [rows, reminders] = await Promise.all([selectAll('todos'), selectAll('todo_reminders')])
     return rows.map((r) => ({
       id: r.id as string,
       title: r.title as string,
@@ -44,9 +44,13 @@ export const todosStore = createSyncedStore<Todo[]>('todos', {
       todayDate: u(r.today_date as string | null),
       createdAt: r.created_at as string,
       doneAt: u(r.done_at as string | null),
+      reminders: reminders
+        .filter((m) => m.todo_id === r.id)
+        .map((m) => ({ id: m.id as string, at: m.remind_at as string, sentAt: u(m.sent_at as string | null) })),
     }))
   },
-  tables: [{ name: 'todos' }],
+  // 알림은 할 일을 가리키므로 할 일 다음에 적고, 지울 때는 알림부터 지운다
+  tables: [{ name: 'todos' }, { name: 'todo_reminders' }],
   toRows: (todos) => ({
     todos: todos.map((t) => ({
       id: t.id,
@@ -62,6 +66,8 @@ export const todosStore = createSyncedStore<Todo[]>('todos', {
       ...(t.createdAt ? { created_at: t.createdAt } : {}),
       done_at: n(t.doneAt),
     })),
+    // sent_at은 발송 함수만 적는다. 웹이 가진 값은 불러온 때의 것이라, 적으면 보낸 기록을 지울 수 있다
+    todo_reminders: todos.flatMap((t) => (t.reminders ?? []).map((r) => ({ id: r.id, todo_id: t.id, remind_at: r.at }))),
   }),
 })
 

@@ -288,7 +288,7 @@ React Router를 쓰고, Vercel에는 모든 경로를 `index.html`로 보내는 
 | 영역 | 표 |
 |---|---|
 | 일정 | `events`(시각은 UTC), `categories` |
-| 할 일 | `todos`(하위 할 일은 같은 표에서 부모 id로), `todo_lists`. 정렬 방식은 `profiles.todo_sort` |
+| 할 일 | `todos`(하위 할 일은 같은 표에서 부모 id로), `todo_lists`, `todo_reminders`(알림 시각 여러 개, 보낸 시각은 발송 함수만 적음). 정렬 방식은 `profiles.todo_sort` |
 | 습관 | `habits`, `habit_logs` |
 | 학업 | `exams`, `exam_subjects`, `study_items`, `assignments`(과목은 글자 열), `assignment_steps` |
 | 메모 | `memos`(위의 표), `notes`(단순 메모장) |

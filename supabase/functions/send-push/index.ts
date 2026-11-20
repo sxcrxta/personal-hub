@@ -1,5 +1,5 @@
 // 푸시 발송 함수 (Supabase Edge Function, Deno) — 두 가지로 불린다
-// 1) pg_cron이 1분마다: 지금 알림 시각인 습관을 찾아 그 사람의 모든 기기로 보낸다 (x-cron-secret으로 확인)
+// 1) pg_cron이 1분마다: 지금 알림 시각인 습관과 때가 된 할 일 알림을 찾아 그 사람의 모든 기기로 보낸다 (x-cron-secret으로 확인)
 // 2) 웹 설정 창의 '테스트 알림': 로그인한 본인 기기로만 하나 보낸다 (로그인 토큰으로 확인)
 // VAPID 개인 키와 CRON_SECRET은 함수 비밀 값에만 있다. 저장소에는 없다
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2'
@@ -17,6 +17,8 @@ webpush.setVapidDetails(
 
 /** 크론이 한 번 건너뛰어도 놓치지 않게, 알림 시각이 지난 5분 안이면 보낸다 (push_log가 두 번 보내는 것을 막는다) */
 const WINDOW_MIN = 5
+/** 할 일 알림은 시각이 지난 15분 안이면 보낸다. 그보다 늦으면 이미 의미가 없어서 보내지 않는다 (sent_at이 두 번 보내는 것을 막는다) */
+const TODO_WINDOW_MIN = 15
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +34,9 @@ Deno.serve(async (req) => {
 
   try {
     if (CRON_SECRET && req.headers.get('x-cron-secret') === CRON_SECRET) {
-      return json(await sendDueHabits(admin))
+      const habits = await sendDueHabits(admin)
+      const todos = await sendDueTodoReminders(admin)
+      return json({ habits, todos })
     }
     // 테스트 알림: 로그인한 본인인지 확인한다
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
@@ -41,7 +45,7 @@ Deno.serve(async (req) => {
     const subs = await subscriptionsOf(admin, [data.user.id])
     const sent = await sendAll(admin, subs, {
       title: 'Personal Hub',
-      body: '알림이 잘 와요! 습관에 알림 시각을 정하면 그 시각에 알려 드려요.',
+      body: '알림이 잘 와요! 습관이나 할 일에 알림 시각을 정하면 그 시각에 알려 드려요.',
       url: '/todo',
       tag: 'test',
     })
@@ -104,6 +108,65 @@ async function sendDueHabits(admin: SupabaseClient) {
     })
   }
   return { due: due.length, sent }
+}
+
+type DueReminder = {
+  id: string
+  user_id: string
+  todo_id: string
+  todos: { user_id: string; title: string; done: boolean; due_date: string | null; due_time: string | null } | null
+}
+
+/** 때가 된 할 일 알림을 보낸다. 보냈다는 기록(sent_at)을 먼저 적어서 함수가 겹쳐 불려도 한 번만 간다 */
+async function sendDueTodoReminders(admin: SupabaseClient) {
+  const now = new Date()
+  const since = new Date(now.getTime() - TODO_WINDOW_MIN * 60 * 1000)
+  const { data, error } = await admin
+    .from('todo_reminders')
+    .select('id, user_id, todo_id, todos(user_id, title, done, due_date, due_time)')
+    .is('sent_at', null)
+    .lte('remind_at', now.toISOString())
+    .gt('remind_at', since.toISOString())
+  if (error) throw error
+  const due = data as unknown as DueReminder[]
+  if (!due.length) return { due: 0, sent: 0 }
+
+  const userIds = [...new Set(due.map((r) => r.user_id))]
+  const { data: profiles, error: profileError } = await admin.from('profiles').select('user_id, timezone').in('user_id', userIds)
+  if (profileError) throw profileError
+  const tzOf = new Map(profiles.map((p) => [p.user_id as string, p.timezone as string]))
+
+  let sent = 0
+  for (const reminder of due) {
+    const { data: claimed } = await admin
+      .from('todo_reminders')
+      .update({ sent_at: now.toISOString() })
+      .eq('id', reminder.id)
+      .is('sent_at', null)
+      .select('id')
+    if (!claimed?.length) continue
+    const todo = reminder.todos
+    // 다른 사람의 할 일을 가리키는 알림은 보내지 않는다. 이미 끝낸 할 일도 알릴 필요가 없다
+    if (!todo || todo.user_id !== reminder.user_id || todo.done) continue
+    const subs = await subscriptionsOf(admin, [reminder.user_id])
+    sent += await sendAll(admin, subs, {
+      title: `⏰ ${todo.title}`,
+      body: dueText(todo.due_date, todo.due_time, localNow(now, tzOf.get(reminder.user_id) ?? 'Asia/Seoul').date),
+      url: `/todo?todo=${reminder.todo_id}`, // 누르면 그 할 일 편집 창이 열리고, 거기서 미룰 수 있다
+      tag: `todo-${reminder.todo_id}`,
+    })
+  }
+  return { due: due.length, sent }
+}
+
+/** 알림 본문. 예: 마감 오늘 21:00, 마감 내일, 마감 11월 25일 */
+function dueText(dueDate: string | null, dueTime: string | null, today: string): string {
+  if (!dueDate) return '할 일을 확인할 시간이에요.'
+  const tomorrow = new Date(`${today}T00:00:00Z`)
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
+  const [, m, d] = dueDate.split('-').map(Number)
+  const day = dueDate === today ? '오늘' : dueDate === tomorrow.toISOString().slice(0, 10) ? '내일' : `${m}월 ${d}일`
+  return `마감 ${day}${dueTime ? ` ${dueTime.slice(0, 5)}` : ''}`
 }
 
 async function subscriptionsOf(admin: SupabaseClient, userIds: string[]): Promise<Sub[]> {

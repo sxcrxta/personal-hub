@@ -1,8 +1,9 @@
-// 할 일 카드 하나 — 체크, 카테고리·마감, 하위 할 일 펼치기, 오늘 할 일로 올리기, 캘린더 배치, 지우기
-import { CalendarPlus, ChevronDown, ListChecks, Sun, Trash2 } from 'lucide-react'
+// 할 일 카드 하나 — 체크, 카테고리·마감·알림 수, 하위 할 일 펼치기, 오늘 할 일로 올리기, 캘린더 배치, 지우기
+import { Bell, CalendarPlus, ChevronDown, ListChecks, Sun, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { usePlaceOnCalendar } from '../../hooks/usePlaceOnCalendar.ts'
 import { todoActions } from '../../hooks/useTodos.ts'
+import { upcomingCount } from '../../lib/reminderRules.ts'
 import { isPickedToday, todoDue } from '../../lib/todoRules.ts'
 import type { Todo, TodoList } from '../../types/data.ts'
 import Checkbox from '../common/Checkbox.tsx'
@@ -23,6 +24,7 @@ export default function TodoItem({ todo, subtasks, list, onOpen }: Props) {
   const due = todoDue(todo)
   const doneSubs = subtasks.filter((s) => s.done).length
   const picked = isPickedToday(todo)
+  const alarms = upcomingCount(todo)
 
   return (
     <article className="rounded-lg border bg-surface-container-lowest p-4 shadow-card">
@@ -35,6 +37,12 @@ export default function TodoItem({ todo, subtasks, list, onOpen }: Props) {
           <div className="flex flex-wrap items-center gap-1.5">
             {todo.category && <SubjectChip name={todo.category} />}
             {due && <DueChip {...due} />}
+            {alarms > 0 && (
+              <span className="flex items-center gap-0.5 text-body-sm text-on-surface-variant" title={`알림 ${alarms}개`}>
+                <Bell size={13} strokeWidth={1.75} />
+                {alarms}
+              </span>
+            )}
             {list && (
               <span className="text-body-sm text-on-surface-variant">
                 {list.emoji} {list.name}

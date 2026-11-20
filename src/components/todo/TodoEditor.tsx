@@ -1,13 +1,15 @@
-// 할 일 편집 창 — 폰에서는 아래에서 올라오는 시트. 제목·목록·카테고리·마감·메모·하위 할 일
+// 할 일 편집 창 — 폰에서는 아래에서 올라오는 시트. 제목·목록·카테고리·마감·알림·메모·하위 할 일
 import { CalendarPlus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { usePlaceOnCalendar } from '../../hooks/usePlaceOnCalendar.ts'
 import { DEFAULT_LIST_ID, todoActions, useTodos } from '../../hooks/useTodos.ts'
+import { shiftReminders, sortReminders, type ReminderChoice } from '../../lib/reminderRules.ts'
 import { showToast } from '../../lib/toast.ts'
 import type { Todo } from '../../types/data.ts'
 import Button from '../common/Button.tsx'
 import Dialog from '../common/Dialog.tsx'
 import { Field, Select, TextArea, TextInput } from '../common/Field.tsx'
+import ReminderSection from './ReminderSection.tsx'
 import SubtaskList from './SubtaskList.tsx'
 
 type Props = {
@@ -21,8 +23,14 @@ export default function TodoEditor({ todo, onClose }: Props) {
   const placeOnCalendar = usePlaceOnCalendar()
   const subtasks = todos.filter((t) => t.parentId === todo.id)
   const set = (patch: Partial<Todo>) => setDraft((d) => ({ ...d, ...patch }))
+  /** 마감을 바꾸면 아직 안 보낸 알림도 같이 옮긴다. 창에서 바로 옮긴 시각이 보인다 */
+  const setDue = (patch: Pick<Todo, 'dueDate' | 'dueTime'>) =>
+    setDraft((d) => {
+      const next = { ...d, ...patch }
+      return { ...next, reminders: shiftReminders(d.reminders ?? [], d, next) }
+    })
 
-  function save() {
+  function save(message = '할 일을 고쳤어요', reminders = draft.reminders ?? []) {
     todoActions.update(todo.id, {
       title: draft.title.trim() || todo.title,
       listId: draft.listId,
@@ -30,9 +38,15 @@ export default function TodoEditor({ todo, onClose }: Props) {
       dueDate: draft.dueDate || undefined,
       dueTime: draft.dueDate ? draft.dueTime || undefined : undefined,
       memo: draft.memo?.trim() || undefined,
+      reminders: sortReminders(reminders),
     })
-    showToast('할 일을 고쳤어요')
+    showToast(message)
     onClose()
+  }
+
+  /** 미루기: 고친 내용과 함께 알림을 하나 더 걸고 닫는다 */
+  function snooze(choice: ReminderChoice) {
+    save(`${choice.label}에 다시 알려 드릴게요`, [...(draft.reminders ?? []), { id: crypto.randomUUID(), at: choice.at }])
   }
 
   return (
@@ -64,17 +78,18 @@ export default function TodoEditor({ todo, onClose }: Props) {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Field label="마감 날짜">
-            <TextInput type="date" value={draft.dueDate ?? ''} onChange={(e) => set({ dueDate: e.target.value })} />
+            <TextInput type="date" value={draft.dueDate ?? ''} onChange={(e) => setDue({ dueDate: e.target.value || undefined, dueTime: draft.dueTime })} />
           </Field>
           <Field label="마감 시각">
             <TextInput
               type="time"
               value={draft.dueTime ?? ''}
               disabled={!draft.dueDate}
-              onChange={(e) => set({ dueTime: e.target.value })}
+              onChange={(e) => setDue({ dueDate: draft.dueDate, dueTime: e.target.value || undefined })}
             />
           </Field>
         </div>
+        <ReminderSection todo={draft} onChange={(reminders) => set({ reminders })} onSnooze={snooze} />
         <Field label="메모">
           <TextArea rows={3} value={draft.memo ?? ''} onChange={(e) => set({ memo: e.target.value })} />
         </Field>
@@ -109,7 +124,7 @@ export default function TodoEditor({ todo, onClose }: Props) {
             <Button variant="ghost" onClick={onClose}>
               취소
             </Button>
-            <Button variant="primary" onClick={save}>
+            <Button variant="primary" onClick={() => save()}>
               저장
             </Button>
           </div>

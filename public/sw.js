@@ -18,6 +18,7 @@ self.addEventListener('push', (event) => {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: data.tag, // 같은 tag면 앞 알림을 덮어써서 같은 알림이 쌓이지 않는다
+      renotify: !!data.tag, // 덮어쓸 때도 다시 울린다 (미룬 할 일 알림)
       data: { url: data.url || '/today' },
     }),
   )
