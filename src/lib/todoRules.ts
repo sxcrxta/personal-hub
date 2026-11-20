@@ -5,7 +5,7 @@ import { dDayLabel, daysFromToday, formatDateKey, fromDateAndTime, shiftDateKey,
 
 /**
  * 빠른 입력 풀기. 예: "#수학 수특 15p 오답 !내일 @21:00"
- * #이름 → 카테고리, !오늘 !내일 !모레 → 마감 날짜, @시:분 → 마감 시각
+ * #이름 → 카테고리, !오늘 !내일 !모레 → 마감 날짜, @시:분 → 마감 시각(없는 시각은 무시)
  */
 export function parseQuickAdd(text: string): { title: string; category?: string; dueDate?: string; dueTime?: string } {
   let category: string | undefined
@@ -22,7 +22,8 @@ export function parseQuickAdd(text: string): { title: string; category?: string;
       dueDate = shiftDateKey(today, word === '오늘' ? 0 : word === '내일' ? 1 : 2)
       return ''
     })
-    .replace(/@(\d{1,2}):(\d{2})/g, (_, h: string, m: string) => {
+    // 0~23시, 0~59분만 시각으로 본다. @25:00 같은 것은 제목에 그대로 남긴다
+    .replace(/@([01]?\d|2[0-3]):([0-5]\d)(?!\d)/g, (_, h: string, m: string) => {
       dueTime = `${h.padStart(2, '0')}:${m}`
       return ''
     })
