@@ -256,8 +256,11 @@ React Router를 쓰고, Vercel에는 모든 경로를 `index.html`로 보내는 
 | 열 | 형 | 설명 |
 |---|---|---|
 | `user_id` | uuid | 로그인 계정 |
-| `default_vault_folder` | text | 볼트 **안쪽** 폴더 이름. 예: `0. Slip-box`. **사람이 설정 창에서 직접 입력한 값**이다 |
+| `vault_folder` | text | 볼트 **안쪽** 폴더 이름. 예: `0. Slip-box`. **사람이 설정 창에서 직접 입력한 값**이다 |
+| `file_name_format` | text | 원문 저장 노트의 파일 이름 형식 |
 | `timezone` | text | 기본 `Asia/Seoul` |
+| `todo_sort` | text | 할 일 정렬 방식 |
+| `onboarding_dismissed` | boolean | 오늘 화면의 시작 안내를 닫았는지 |
 | `review_before_save` | boolean | AI 정제 결과를 저장 전에 검토할지. 기본 꺼짐 (확장) |
 
 ### `memos` — 메모이자 작업 큐 (가장 중요한 표)
@@ -279,19 +282,19 @@ React Router를 쓰고, Vercel에는 모든 경로를 `index.html`로 보내는 
 | `resurface_score` | int | 낮을수록 오늘 브리핑에 다시 나올 확률이 높다 |
 | `last_shown_at` | timestamptz | 마지막으로 다시 보여준 시각 |
 
-### 나머지 표 (3회차에 열까지 확정)
-이름은 3회차에 표를 만들면서 바꿀 수 있다.
+### 나머지 표
+3회차에 표를 만들면서 이름을 정했다. 실제 열은 `supabase/migrations/`에 있다.
 
 | 영역 | 표 |
 |---|---|
 | 일정 | `events`(시각은 UTC), `categories` |
-| 할 일 | `todos`(하위 할 일은 같은 표에서 부모 id로), `todo_lists`, `todo_preferences`(정렬 방식), `todo_reminders` |
+| 할 일 | `todos`(하위 할 일은 같은 표에서 부모 id로), `todo_lists`. 정렬 방식은 `profiles.todo_sort` |
 | 습관 | `habits`, `habit_logs` |
-| 학업 | `exams`, `exam_subjects`, `study_items`, `assignments`, `assignment_subjects`, `assignment_steps` |
-| 메모 | `memo_entries`(위의 memos), `notes`(단순 메모장) |
-| 오늘 | `daily_notes`(플러그인이 골라 올린 오늘의 노트) |
-| 설정 | `vault_profiles`(볼트 폴더·파일 이름 형식), `name_styles`(이름별 색·이모지) |
-| 연결 기기·알림 | `worker_devices`(플러그인 기기와 마지막 신호 시각), `push_subscriptions` |
+| 학업 | `exams`, `exam_subjects`, `study_items`, `assignments`(과목은 글자 열), `assignment_steps` |
+| 메모 | `memos`(위의 표), `notes`(단순 메모장) |
+| 오늘 | `vault_notes`(플러그인이 볼트에서 골라 올린 노트 후보), `daily_notes`(날짜별로 고른 오늘의 노트) |
+| 설정 | `profiles`(위의 표). 이름별 색·이모지는 표에 두지 않고 이름으로 정한다(`src/lib/nameStyle.ts`, `subjectColor.ts`). 고른 이모지는 각 행의 `emoji` 열에 |
+| 연결 기기·알림 | `worker_devices`(플러그인 기기와 마지막 신호 시각), `push_subscriptions`, `push_log`(같은 알림을 두 번 보내지 않게 보낸 기록) |
 
 → `worker_devices`의 신호가 끊기면 웹에서 "AI로 정제하여 저장"을 고를 수 없게 막는다.
 
