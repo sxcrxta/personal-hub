@@ -29,7 +29,7 @@ export default function Dialog({ open, onClose, title, children, size = 'md', fo
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-on-surface/30 md:items-center md:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-scrim md:items-center md:p-6" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

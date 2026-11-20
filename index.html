@@ -13,6 +13,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Personal Hub</title>
+    <script>
+      // 화면이 그려지기 전에 테마를 붙여서, 어두운 테마에서 밝은 화면이 번쩍이지 않게 한다 (규칙은 src/lib/themeRules.ts와 같다)
+      try {
+        var choice = localStorage.getItem('personal-hub-theme') || 'system'
+        var theme = ['light', 'slate', 'ink', 'black'].indexOf(choice) >= 0 ? choice : matchMedia('(prefers-color-scheme: dark)').matches ? 'slate' : 'light'
+        document.documentElement.dataset.theme = theme
+        var bg = { light: '#f7f9fb', slate: '#0b1220', ink: '#161412', black: '#000000' }[theme]
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', bg)
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />

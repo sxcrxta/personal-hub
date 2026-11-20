@@ -1,4 +1,4 @@
-// 설정 창 — 사이드바(폰은 상단바)의 설정 버튼으로 연다. 계정, 볼트 폴더와 파일 이름 형식, Obsidian 연결 기기와 설치 파일, 알림 켜기 (테마는 8회차)
+// 설정 창 — 사이드바(폰은 상단바)의 설정 버튼으로 연다. 계정, 볼트 폴더와 파일 이름 형식, Obsidian 연결 기기와 설치 파일, 알림 켜기, 테마
 import { Download, LogOut } from 'lucide-react'
 import { useStore } from '../../hooks/useStore.ts'
 import { cleanFolder, isWorkerAlive, useWorkers } from '../../hooks/useMemos.ts'
@@ -12,6 +12,7 @@ import Checkbox from '../common/Checkbox.tsx'
 import Dialog from '../common/Dialog.tsx'
 import { Field, TextInput } from '../common/Field.tsx'
 import NotificationSettings from './NotificationSettings.tsx'
+import ThemeSettings from './ThemeSettings.tsx'
 
 type Props = {
   open: boolean
@@ -122,9 +123,7 @@ export default function SettingsDialog({ open, onClose }: Props) {
           </a>
         </section>
         <NotificationSettings />
-        <section className="rounded border bg-surface-container-low p-4 text-body-sm text-on-surface-variant">
-          테마 고르기는 곧 여기에 생겨요.
-        </section>
+        <ThemeSettings />
       </div>
     </Dialog>
   )

@@ -1,4 +1,4 @@
-/* 색·글꼴·둥글기·그림자를 정의하는 유일한 곳 — docs/DESIGN.md(Stitch "Serene Academic Workstation")를 옮겨 둔 것 */
+/* 색·글꼴·둥글기·그림자를 정의하는 유일한 곳 — docs/DESIGN.md(Stitch "Serene Academic Workstation")를 옮겨 둔 것. 아래쪽에 어두운 테마 세 가지 */
 
 @theme {
   /* Tailwind 기본 색을 모두 지워서, 아래에 적은 색만 쓸 수 있게 한다 */
@@ -17,6 +17,8 @@
   --color-outline: #75777d;
   --color-outline-variant: #c5c6cd;
   --color-line: rgba(226, 232, 240, 0.8);
+  /* 창(모달) 뒤를 덮는 막 */
+  --color-scrim: rgba(25, 28, 30, 0.3);
 
   /* 강조 */
   --color-primary: #1d2b3e;
@@ -102,4 +104,175 @@
   --breakpoint-md: 768px;
   --spacing-sidebar: 240px;
   --container-page: 1440px;
+}
+
+/*
+ * 어두운 테마 세 가지 — 위 @theme의 색 이름은 그대로 두고 값만 바꾼다. 화면 코드는 고치지 않는다
+ * html의 data-theme은 src/lib/theme.ts가 정한다 (light / slate / ink / black). "기기 설정 따라가기"는 거기서 light나 slate로 바꿔 붙인다
+ * 11월 20일: Stitch 시안 생성이 두 번 다 시간 초과로 끝나서, 실제 사이트에 값을 입혀 보고 정했다
+ */
+:root {
+  color-scheme: light;
+}
+
+/* 밤 남색 — 짙은 남색 바탕, 푸른 회색 글자. 기기 설정이 어두우면 이것을 쓴다 */
+:root[data-theme='slate'] {
+  color-scheme: dark;
+  /* 바탕과 면 */
+  --color-background: #0b1220;
+  --color-surface-container-lowest: #111a2b;
+  --color-surface-container-low: #172133;
+  --color-surface-container: #1e293b;
+  --color-surface-container-high: #273449;
+  /* 글자와 선 */
+  --color-on-surface: #e5e9f0;
+  --color-on-surface-variant: #a0aec2;
+  --color-outline: #74839a;
+  --color-outline-variant: #3b4a60;
+  --color-line: rgba(148,163,184,0.14);
+  /* 강조 */
+  --color-primary: #dbe4f3;
+  --color-primary-container: #c3cfe2;
+  --color-on-primary: #0f172a;
+  --color-secondary: #a9bbd6;
+  --color-secondary-container: #2c3d58;
+  --color-error: #f87171;
+  --color-error-container: #4c1d1d;
+  /* 부품 */
+  --color-button: #dbe4f3;
+  --color-hover: #1f2a3d;
+  --color-hover-soft: #172133;
+  --color-icon: #8c9bb2;
+  --color-field-border: #334257;
+  --color-placeholder: #6b7a90;
+  /* 과목·카테고리 (바탕은 어둡게 물든 색, 글자는 밝게) */
+  --color-math-bg: #172a4a;
+  --color-math: #7fb0ff;
+  --color-science-bg: #133227;
+  --color-science: #5fd68e;
+  --color-korean-bg: #3b1a24;
+  --color-korean: #fb8aa0;
+  --color-english-bg: #2a2148;
+  --color-english: #b9a2ff;
+  --color-social-bg: #3a2a12;
+  --color-social: #f0b45a;
+  --color-urgent-bg: #3d1717;
+  --color-urgent: #f87171;
+  /* 기한 칸 */
+  --color-due-overdue: #f87171;
+  --color-due-today: #6ea8ff;
+  --color-due-soon: #f0b45a;
+  --color-due-week: #7b8aa3;
+  --color-scrim: rgba(0, 0, 0, 0.6);
+  /* 어두운 바탕에서는 옅은 그림자가 안 보여서 진하게 */
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* 먹색 — 따뜻한 숯색 바탕, 크림색 글자. 푸른 빛이 적어 밤에 눈이 편하다 */
+:root[data-theme='ink'] {
+  color-scheme: dark;
+  /* 바탕과 면 */
+  --color-background: #161412;
+  --color-surface-container-lowest: #1e1b18;
+  --color-surface-container-low: #23201c;
+  --color-surface-container: #2a2622;
+  --color-surface-container-high: #332e29;
+  /* 글자와 선 */
+  --color-on-surface: #ece4d8;
+  --color-on-surface-variant: #b5aa9a;
+  --color-outline: #8a7f70;
+  --color-outline-variant: #4a433a;
+  --color-line: rgba(214,200,180,0.12);
+  /* 강조 */
+  --color-primary: #efe6d6;
+  --color-primary-container: #d9ccb6;
+  --color-on-primary: #1c1a17;
+  --color-secondary: #c9b99d;
+  --color-secondary-container: #3d3528;
+  --color-error: #f28b82;
+  --color-error-container: #4a1f1b;
+  /* 부품 */
+  --color-button: #efe6d6;
+  --color-hover: #2c2823;
+  --color-hover-soft: #221f1b;
+  --color-icon: #a1968a;
+  --color-field-border: #403a32;
+  --color-placeholder: #7d7366;
+  /* 과목·카테고리 (바탕은 어둡게 물든 색, 글자는 밝게) */
+  --color-math-bg: #1e2a3a;
+  --color-math: #8fb4e8;
+  --color-science-bg: #1c2e22;
+  --color-science: #8fcf98;
+  --color-korean-bg: #3a1f22;
+  --color-korean: #f09aa6;
+  --color-english-bg: #2c2438;
+  --color-english: #c2aef0;
+  --color-social-bg: #3a2c16;
+  --color-social: #e8b866;
+  --color-urgent-bg: #3c1c19;
+  --color-urgent: #f28b82;
+  /* 기한 칸 */
+  --color-due-overdue: #f28b82;
+  --color-due-today: #8fb4e8;
+  --color-due-soon: #e8b866;
+  --color-due-week: #8a7f70;
+  --color-scrim: rgba(0, 0, 0, 0.6);
+  /* 어두운 바탕에서는 옅은 그림자가 안 보여서 진하게 */
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* 완전 검정 — OLED 화면용. 바탕이 검정이라 배터리를 덜 쓰고 대비가 가장 세다 */
+:root[data-theme='black'] {
+  color-scheme: dark;
+  /* 바탕과 면 */
+  --color-background: #000000;
+  --color-surface-container-lowest: #0d0d0d;
+  --color-surface-container-low: #121212;
+  --color-surface-container: #1a1a1a;
+  --color-surface-container-high: #242424;
+  /* 글자와 선 */
+  --color-on-surface: #f2f2f2;
+  --color-on-surface-variant: #a8a8a8;
+  --color-outline: #7a7a7a;
+  --color-outline-variant: #3a3a3a;
+  --color-line: rgba(255,255,255,0.12);
+  /* 강조 */
+  --color-primary: #ffffff;
+  --color-primary-container: #e0e0e0;
+  --color-on-primary: #000000;
+  --color-secondary: #bdbdbd;
+  --color-secondary-container: #2a2a2a;
+  --color-error: #ff6b6b;
+  --color-error-container: #3d1414;
+  /* 부품 */
+  --color-button: #f2f2f2;
+  --color-hover: #1c1c1c;
+  --color-hover-soft: #111111;
+  --color-icon: #9a9a9a;
+  --color-field-border: #333333;
+  --color-placeholder: #6e6e6e;
+  /* 과목·카테고리 (바탕은 어둡게 물든 색, 글자는 밝게) */
+  --color-math-bg: #0f1f3a;
+  --color-math: #6aa6ff;
+  --color-science-bg: #0e2a1a;
+  --color-science: #4fd88a;
+  --color-korean-bg: #33121b;
+  --color-korean: #ff8099;
+  --color-english-bg: #22183f;
+  --color-english: #b49cff;
+  --color-social-bg: #33240a;
+  --color-social: #ffb84d;
+  --color-urgent-bg: #3a0f0f;
+  --color-urgent: #ff6b6b;
+  /* 기한 칸 */
+  --color-due-overdue: #ff6b6b;
+  --color-due-today: #6aa6ff;
+  --color-due-soon: #ffb84d;
+  --color-due-week: #7a7a7a;
+  --color-scrim: rgba(0, 0, 0, 0.6);
+  /* 어두운 바탕에서는 옅은 그림자가 안 보여서 진하게 */
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
 }

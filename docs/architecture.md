@@ -262,6 +262,7 @@ React Router를 쓰고, Vercel에는 모든 경로를 `index.html`로 보내는 
 | `todo_sort` | text | 할 일 정렬 방식 |
 | `onboarding_dismissed` | boolean | 오늘 화면의 시작 안내를 닫았는지 |
 | `review_before_save` | boolean | AI 정제 결과를 저장 전에 검토할지. 기본 꺼짐 (확장) |
+| `theme` | text | 테마: `system`(기기 설정 따라가기, 기본) / `light` / `slate`(밤 남색) / `ink`(먹색) / `black`(완전 검정). 기기마다 마지막 값을 브라우저에도 두어 로그인 전·첫 화면에서도 바로 쓴다 |
 
 ### `memos` — 메모이자 작업 큐 (가장 중요한 표)
 | 열 | 형 | 설명 |
